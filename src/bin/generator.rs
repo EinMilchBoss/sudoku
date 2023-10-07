@@ -10,34 +10,34 @@ fn main() {
     let grid = grid_generator.create(17);
     println!("{}", grid);
     println!("{}", grid.draw().join(""));
-
-    // grid is empty
-    // loops (at least 17 times):
-    // - select a random tile
-    // - find a valid number
-    // - fill it in
-    // - remove tile in list, in order to not pick it again
 }
 
 const NUMBER_OF_TILES: usize = 9 * 9;
 
-struct GridGenerator {
+pub struct GridGenerator {
     prng: StdRng,
 }
 
 impl GridGenerator {
-    fn with_seed(seed: u64) -> Self {
+    pub fn with_seed(seed: u64) -> Self {
         Self {
             prng: StdRng::seed_from_u64(seed),
         }
     }
 
-    fn create(&self, given_tiles: usize) -> Grid {
+    pub fn create(&self, given_tiles: usize) -> Grid {
+        // grid is empty
+        // loops (at least 17 times):
+        // - select a random tile
+        // - find a valid number
+        // - fill it in
+        // - remove tile in list, in order to not pick it again
+
         Grid([0; NUMBER_OF_TILES])
     }
 }
 
-struct Grid([u8; NUMBER_OF_TILES]);
+pub struct Grid(pub [u8; NUMBER_OF_TILES]);
 
 impl Display for Grid {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -52,7 +52,7 @@ impl Grid {
 }
 
 #[cfg(test)]
-mod grid_tests {
+mod grid_generator_tests {
     use super::*;
 
     #[test]
