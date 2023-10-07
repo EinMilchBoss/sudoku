@@ -23,12 +23,12 @@ fn main() {
         };
 }
 
-fn build_parse_error_message(error: GridParsingError) -> String {
+fn build_parse_error_message(error: ParseGridError) -> String {
     match &error {
-        GridParsingError::InvalidChars(invalid_chars) => {
+        ParseGridError::InvalidChars(invalid_chars) => {
             format!("{}\n{}", error, write_bullet_points(invalid_chars))
         }
-        GridParsingError::InvalidLength(_) => error.to_string(),
+        ParseGridError::InvalidLength(_) => error.to_string(),
     }
 }
 
@@ -42,7 +42,7 @@ fn write_bullet_points(invalid_chars: &[InvalidChar]) -> String {
 const NUMBER_OF_TILES: usize = 9 * 9;
 
 #[derive(Debug, Error, PartialEq, Eq)]
-pub enum GridParsingError {
+pub enum ParseGridError {
     #[error("One or more chars were invalid.")]
     InvalidChars(Vec<InvalidChar>),
     #[error("Expected an input of size {}, found {} instead.", NUMBER_OF_TILES, .0)]
@@ -68,12 +68,12 @@ impl InvalidChar {
 pub struct Grid(pub [u8; NUMBER_OF_TILES]);
 
 impl FromStr for Grid {
-    type Err = GridParsingError;
+    type Err = ParseGridError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let length = s.chars().count();
         if length != NUMBER_OF_TILES {
-            return Err(GridParsingError::InvalidLength(length));
+            return Err(ParseGridError::InvalidLength(length));
         }
 
         let (values, errors): (Vec<_>, Vec<_>) = s
@@ -93,7 +93,7 @@ impl FromStr for Grid {
         if errors.is_empty() {
             Ok(Grid(values.try_into().unwrap()))
         } else {
-            Err(GridParsingError::InvalidChars(errors))
+            Err(ParseGridError::InvalidChars(errors))
         }
     }
 }
@@ -132,10 +132,10 @@ mod grid_from_str_trait_tests {
         let error = extract_errors(input_valid_chars.parse::<Grid>());
 
         match error {
-            GridParsingError::InvalidChars(invalid_chars) => {
+            ParseGridError::InvalidChars(invalid_chars) => {
                 assert_eq!(9, invalid_chars.len());
             }
-            GridParsingError::InvalidLength(_) => panic!("Expected an `InvalidChars` error."),
+            ParseGridError::InvalidLength(_) => panic!("Expected an `InvalidChars` error."),
         }
     }
 
@@ -156,10 +156,10 @@ mod grid_from_str_trait_tests {
         let error = extract_errors(input_bigger.parse::<Grid>());
 
         match error {
-            GridParsingError::InvalidLength(actual_length) => {
+            ParseGridError::InvalidLength(actual_length) => {
                 assert_eq!(input_length, actual_length);
             }
-            GridParsingError::InvalidChars(_) => panic!("Expected an `InvalidLength` error."),
+            ParseGridError::InvalidChars(_) => panic!("Expected an `InvalidLength` error."),
         }
     }
 
@@ -171,14 +171,14 @@ mod grid_from_str_trait_tests {
         let error = extract_errors(input_smaller.parse::<Grid>());
 
         match error {
-            GridParsingError::InvalidLength(actual_length) => {
+            ParseGridError::InvalidLength(actual_length) => {
                 assert_eq!(input_length, actual_length);
             }
-            GridParsingError::InvalidChars(_) => panic!("Expected an `InvalidLength` error."),
+            ParseGridError::InvalidChars(_) => panic!("Expected an `InvalidLength` error."),
         }
     }
 
-    fn extract_errors(parsed: Result<Grid, GridParsingError>) -> GridParsingError {
+    fn extract_errors(parsed: Result<Grid, ParseGridError>) -> ParseGridError {
         parsed.expect_err("Parsing should have failed.")
     }
 }
