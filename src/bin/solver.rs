@@ -9,7 +9,16 @@ use std::{cmp::Ordering, fmt::Display, str::FromStr};
 use itertools::{Either, Itertools};
 
 fn main() {
-    let input = "210080300060070084030500209000105408000000000402706000301007040720040060004010003";
+    let input = "210080300060070084030500209000105408000000000402706000301007040720040060004010003"
+        .parse::<Grid>();
+    if let Err(error) = input {
+        let bullet_points = error
+            .iter()
+            .map(|message| String::from("- ") + message)
+            .join("\n");
+        println!("Parsing error:\n{}", bullet_points);
+        return;
+    }
 }
 
 const NUMBER_OF_TILES: usize = 9 * 9;
