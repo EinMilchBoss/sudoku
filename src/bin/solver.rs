@@ -45,15 +45,16 @@ fn write_bullet_points(invalid_chars: &[InvalidChar]) -> String {
         .join("\n")
 }
 
-const NUMBER_OF_TILES: usize = VALUES_PER_SIDE * VALUES_PER_SIDE;
-const VALUES_PER_SIDE: usize = 9;
+const VALUES_PER_GRID: usize = VALUES_PER_GRID_SIDE * VALUES_PER_GRID_SIDE;
+const VALUES_PER_GRID_SIDE: usize = 9;
+const VALUES_PER_BLOCK: usize = VALUES_PER_BLOCK_SIDE * VALUES_PER_BLOCK_SIDE;
 const VALUES_PER_BLOCK_SIDE: usize = 3;
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ParseGridError {
     #[error("One or more chars were invalid.")]
     InvalidChars(Vec<InvalidChar>),
-    #[error("Expected an input of size {}, found {} instead.", NUMBER_OF_TILES, .0)]
+    #[error("Expected an input of size {}, found {} instead.", VALUES_PER_GRID, .0)]
     InvalidLength(usize),
 }
 
@@ -73,14 +74,14 @@ impl InvalidChar {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Grid(pub [u8; NUMBER_OF_TILES]);
+pub struct Grid(pub [u8; VALUES_PER_GRID]);
 
 impl FromStr for Grid {
     type Err = ParseGridError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let length = s.chars().count();
-        if length != NUMBER_OF_TILES {
+        if length != VALUES_PER_GRID {
             return Err(ParseGridError::InvalidLength(length));
         }
 
@@ -110,10 +111,10 @@ impl fmt::Display for Grid {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Self(values) = self;
         let content = values
-            .chunks(VALUES_PER_BLOCK_SIDE * VALUES_PER_SIDE)
+            .chunks(VALUES_PER_BLOCK_SIDE * VALUES_PER_GRID_SIDE)
             .map(|layer| {
                 layer
-                    .chunks(VALUES_PER_SIDE)
+                    .chunks(VALUES_PER_GRID_SIDE)
                     .map(|row| {
                         row.chunks(VALUES_PER_BLOCK_SIDE)
                             .map(|block_row| block_row.iter().join(" "))
@@ -209,16 +210,16 @@ mod grid_from_str_trait_tests {
 
     #[test]
     fn from_str_test_right_amount() {
-        let input_empty_grid: String = "0".repeat(NUMBER_OF_TILES);
+        let input_empty_grid: String = "0".repeat(VALUES_PER_GRID);
 
         let grid = input_empty_grid.parse();
 
-        assert_eq!(Ok(Grid([0; NUMBER_OF_TILES])), grid);
+        assert_eq!(Ok(Grid([0; VALUES_PER_GRID])), grid);
     }
 
     #[test]
     fn from_str_test_too_big() {
-        let input_length = NUMBER_OF_TILES + 1;
+        let input_length = VALUES_PER_GRID + 1;
         let input_bigger: String = "0".repeat(input_length);
 
         let error = extract_errors(input_bigger.parse::<Grid>());
@@ -233,7 +234,7 @@ mod grid_from_str_trait_tests {
 
     #[test]
     fn from_str_test_too_small() {
-        let input_length = NUMBER_OF_TILES - 1;
+        let input_length = VALUES_PER_GRID - 1;
         let input_smaller: String = "0".repeat(input_length);
 
         let error = extract_errors(input_smaller.parse::<Grid>());
