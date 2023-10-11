@@ -148,7 +148,7 @@ mod grid_display_trait_tests {
         ]
         .into_iter()
         .flatten()
-        .collect::<Vec<u8>>()
+        .collect::<Vec<_>>()
         .try_into()
         .unwrap();
         let grid = Grid(input);
@@ -184,7 +184,7 @@ mod grid_from_str_trait_tests {
             vec![[1, 2, 3, 4, 5, 6, 7, 8, 9]; 9]
                 .into_iter()
                 .flatten()
-                .collect::<Vec<u8>>()
+                .collect::<Vec<_>>()
                 .try_into()
                 .unwrap(),
         );
