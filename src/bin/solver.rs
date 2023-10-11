@@ -4,7 +4,11 @@
 // parse input into grid
 // solve grid (backtracing)
 
-use std::{cmp::Ordering, fmt::Display, process, str::FromStr};
+use std::{
+    fmt::{self},
+    process,
+    str::FromStr,
+};
 
 use thiserror::Error;
 
@@ -17,14 +21,14 @@ fn main() {
         {
             Ok(grid) => grid,
             Err(error) => {
-                eprintln!("{}", build_parse_error_message(error));
+                eprintln!("{}", build_parse_error_message(&error));
                 process::exit(1);
             }
         };
 }
 
-fn build_parse_error_message(error: ParseGridError) -> String {
-    match &error {
+fn build_parse_error_message(error: &ParseGridError) -> String {
+    match error {
         ParseGridError::InvalidChars(invalid_chars) => {
             format!("{}\n{}", error, write_bullet_points(invalid_chars))
         }
@@ -98,9 +102,72 @@ impl FromStr for Grid {
     }
 }
 
-impl Display for Grid {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+const VALUES_PER_SIDE: usize = 9;
+const VALUES_PER_BLOCK_SIDE: usize = 3;
+
+impl fmt::Display for Grid {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self(values) = self;
+        let content = values
+            .chunks(VALUES_PER_BLOCK_SIDE * VALUES_PER_SIDE)
+            .map(|layer| {
+                layer
+                    .chunks(VALUES_PER_SIDE)
+                    .map(|row| {
+                        row.chunks(VALUES_PER_BLOCK_SIDE)
+                            .map(|block_row| block_row.iter().join(" "))
+                            .join(" | ")
+                    })
+                    .join("\n")
+            })
+            .join("\n------+-------+------\n");
+        write!(f, "{}", content)
+    }
+}
+
+#[cfg(test)]
+mod grid_display_trait_tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    #[test]
+    fn to_string_test() {
+        let input = vec![
+            [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [9, 8, 7, 6, 5, 4, 3, 2, 1],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [6, 6, 6, 6, 6, 6, 6, 6, 6],
+            [7, 7, 7, 7, 7, 7, 7, 7, 7],
+            [8, 8, 8, 8, 8, 8, 8, 8, 8],
+            [9, 9, 9, 9, 9, 9, 9, 9, 9],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1],
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<u8>>()
+        .try_into()
+        .unwrap();
+        let grid = Grid(input);
+        let expected = [
+            "1 2 3 | 4 5 6 | 7 8 9",
+            "0 0 0 | 0 0 0 | 0 0 0",
+            "9 8 7 | 6 5 4 | 3 2 1",
+            "------+-------+------",
+            "0 0 0 | 0 0 0 | 0 0 0",
+            "6 6 6 | 6 6 6 | 6 6 6",
+            "7 7 7 | 7 7 7 | 7 7 7",
+            "------+-------+------",
+            "8 8 8 | 8 8 8 | 8 8 8",
+            "9 9 9 | 9 9 9 | 9 9 9",
+            "1 1 1 | 1 1 1 | 1 1 1",
+        ]
+        .join("\n");
+
+        let actual = grid.to_string();
+
+        assert_eq!(expected, actual)
     }
 }
 
