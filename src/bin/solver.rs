@@ -25,6 +25,8 @@ fn main() {
                 process::exit(1);
             }
         };
+
+    println!("{}", input);
 }
 
 fn build_parse_error_message(error: &ParseGridError) -> String {
