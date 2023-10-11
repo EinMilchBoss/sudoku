@@ -45,7 +45,9 @@ fn write_bullet_points(invalid_chars: &[InvalidChar]) -> String {
         .join("\n")
 }
 
-const NUMBER_OF_TILES: usize = 9 * 9;
+const NUMBER_OF_TILES: usize = VALUES_PER_SIDE * VALUES_PER_SIDE;
+const VALUES_PER_SIDE: usize = 9;
+const VALUES_PER_BLOCK_SIDE: usize = 3;
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ParseGridError {
@@ -103,9 +105,6 @@ impl FromStr for Grid {
         }
     }
 }
-
-const VALUES_PER_SIDE: usize = 9;
-const VALUES_PER_BLOCK_SIDE: usize = 3;
 
 impl fmt::Display for Grid {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
