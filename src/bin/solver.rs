@@ -20,8 +20,13 @@ fn main() {
             }
         };
 
-    println!("{}", input);
-    println!("{}", solve_grid(input).unwrap());
+    match input.solve_grid() {
+        Some(solution) => println!("{solution}"),
+        None => {
+            eprintln!("Could not find a solution.");
+            process::exit(1);
+        }
+    }
 }
 
 fn build_parse_error_message(error: &ParseGridError) -> String {
@@ -71,51 +76,46 @@ impl InvalidChar {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Grid([u8; VALUES_PER_GRID]);
 
-fn solve_grid(grid: Grid) -> Option<Grid> {
-    let Grid(values) = grid;
+impl Grid {
+    pub fn solve_grid(&self) -> Option<Grid> {
+        let Grid(values) = self;
 
-    solve_grid_iter(0, values)
+        solve_grid_iter(0, *values)
+    }
 }
 
 fn solve_grid_iter(index: usize, mut values: [u8; 81]) -> Option<Grid> {
-    println!("initial {index}");
     if index == VALUES_PER_GRID {
         return Some(Grid(values));
     }
     if values[index] == 0 {
-        println!("Found 0");
         for i in 1..=9 {
-            println!("position {index} Index {i}");
-            if is_valid(index, i, values) {
-                println!("Is valid!");
+            if is_valid(index, i, &values) {
                 values[index] = i;
                 let deeper = solve_grid_iter(index + 1, values);
                 if deeper.is_some() {
-                    println!("Found a result!");
                     return deeper;
-                } else {
-                    println!("Sadly no hit yet...");
                 }
             }
         }
-        return None;
+        None
     } else {
-        return solve_grid_iter(index + 1, values);
+        solve_grid_iter(index + 1, values)
     }
 }
 
-fn is_valid(index: usize, value: u8, values: [u8; VALUES_PER_GRID]) -> bool {
+fn is_valid(index: usize, value: u8, values: &[u8; VALUES_PER_GRID]) -> bool {
     is_row_valid(index, value, values)
         && is_col_valid(index, value, values)
         && is_block_valid(index, value, values)
 }
 
-fn is_col_valid(index: usize, value: u8, values: [u8; VALUES_PER_GRID]) -> bool {
+fn is_col_valid(index: usize, value: u8, values: &[u8; VALUES_PER_GRID]) -> bool {
     let col_vals: Vec<_> = values
         .chunks(VALUES_PER_GRID_SIDE)
         .map(|values| {
             values
-                .into_iter()
+                .iter()
                 .enumerate()
                 .filter(|(i, _)| *i == index % VALUES_PER_GRID_SIDE)
                 .map(|(_, v)| v)
@@ -123,11 +123,10 @@ fn is_col_valid(index: usize, value: u8, values: [u8; VALUES_PER_GRID]) -> bool 
                 .unwrap()
         })
         .collect_vec();
-    // dbg!(&col_vals);
     !col_vals.into_iter().any(|v| *v == value)
 }
 
-fn is_block_valid(index: usize, value: u8, values: [u8; VALUES_PER_GRID]) -> bool {
+fn is_block_valid(index: usize, value: u8, values: &[u8; VALUES_PER_GRID]) -> bool {
     let xb = (index % 9) / 3;
     let yb = (index / 9) / 3;
     let first = 3 * 9 * yb + 3 * xb;
@@ -143,19 +142,17 @@ fn is_block_valid(index: usize, value: u8, values: [u8; VALUES_PER_GRID]) -> boo
         first + 2 * 9 + 2,
     ];
     let block_vals: Vec<_> = indices.into_iter().map(|i| values[i]).collect_vec();
-    // dbg!(&block_vals);
     !block_vals.into_iter().any(|v| v == value)
 }
 
-fn is_row_valid(index: usize, value: u8, values: [u8; VALUES_PER_GRID]) -> bool {
+fn is_row_valid(index: usize, value: u8, values: &[u8; VALUES_PER_GRID]) -> bool {
     let row_vals: Vec<_> = values
         .chunks(VALUES_PER_GRID_SIDE)
         .enumerate()
-        .filter(|(i, value)| *i == index / VALUES_PER_GRID_SIDE)
+        .filter(|(i, _)| *i == index / VALUES_PER_GRID_SIDE)
         .map(|(_, value)| value.to_vec())
         .next()
         .unwrap();
-    // dbg!(&row_vals);
     !row_vals.into_iter().any(|v| v == value)
 }
 
@@ -235,9 +232,9 @@ mod grid_solve_tests {
         .try_into()
         .unwrap();
 
-        let first = is_block_valid(10, 5, input);
-        let second = is_block_valid(40, 5, input);
-        let third = is_block_valid(70, 5, input);
+        let first = is_block_valid(10, 5, &input);
+        let second = is_block_valid(40, 5, &input);
+        let third = is_block_valid(70, 5, &input);
 
         assert_eq!(true, first);
         assert_eq!(true, second);
@@ -263,9 +260,9 @@ mod grid_solve_tests {
         .try_into()
         .unwrap();
 
-        let first = is_block_valid(10, 1, input);
-        let second = is_block_valid(40, 6, input);
-        let third = is_block_valid(70, 8, input);
+        let first = is_block_valid(10, 1, &input);
+        let second = is_block_valid(40, 6, &input);
+        let third = is_block_valid(70, 8, &input);
 
         assert_eq!(false, first);
         assert_eq!(false, second);
@@ -291,9 +288,9 @@ mod grid_solve_tests {
         .try_into()
         .unwrap();
 
-        let first = is_col_valid(10, 5, input);
-        let second = is_col_valid(40, 5, input);
-        let third = is_col_valid(70, 5, input);
+        let first = is_col_valid(10, 5, &input);
+        let second = is_col_valid(40, 5, &input);
+        let third = is_col_valid(70, 5, &input);
 
         assert_eq!(true, first);
         assert_eq!(true, second);
@@ -319,9 +316,9 @@ mod grid_solve_tests {
         .try_into()
         .unwrap();
 
-        let first = is_col_valid(10, 2, input);
-        let second = is_col_valid(40, 8, input);
-        let third = is_col_valid(70, 2, input);
+        let first = is_col_valid(10, 2, &input);
+        let second = is_col_valid(40, 8, &input);
+        let third = is_col_valid(70, 2, &input);
 
         assert_eq!(false, first);
         assert_eq!(false, second);
@@ -347,9 +344,9 @@ mod grid_solve_tests {
         .try_into()
         .unwrap();
 
-        let first = is_row_valid(10, 5, input);
-        let second = is_row_valid(40, 5, input);
-        let third = is_row_valid(70, 5, input);
+        let first = is_row_valid(10, 5, &input);
+        let second = is_row_valid(40, 5, &input);
+        let third = is_row_valid(70, 5, &input);
 
         assert_eq!(true, first);
         assert_eq!(true, second);
@@ -375,9 +372,9 @@ mod grid_solve_tests {
         .try_into()
         .unwrap();
 
-        let first = is_row_valid(10, 4, input);
-        let second = is_row_valid(40, 6, input);
-        let third = is_row_valid(70, 4, input);
+        let first = is_row_valid(10, 4, &input);
+        let second = is_row_valid(40, 6, &input);
+        let third = is_row_valid(70, 4, &input);
 
         assert_eq!(false, first);
         assert_eq!(false, second);
