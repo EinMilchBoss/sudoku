@@ -1,9 +1,3 @@
-// get input (command line)
-// - string of numbers
-// - each number is a tile
-// parse input into grid
-// solve grid (backtracing)
-
 use std::{
     fmt::{self},
     process,
@@ -16,7 +10,7 @@ use itertools::{Either, Itertools};
 
 fn main() {
     let input =
-        match "210080300060070084030500209000105408000000000402706000301007040720040060004010003"
+        match "108720005002008000000009070009340050000007000060000001900000400004250030000080000"
             .parse::<Grid>()
         {
             Ok(grid) => grid,
@@ -27,6 +21,7 @@ fn main() {
         };
 
     println!("{}", input);
+    println!("{}", solve_grid(input).unwrap());
 }
 
 fn build_parse_error_message(error: &ParseGridError) -> String {
@@ -74,7 +69,95 @@ impl InvalidChar {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Grid(pub [u8; VALUES_PER_GRID]);
+pub struct Grid([u8; VALUES_PER_GRID]);
+
+fn solve_grid(grid: Grid) -> Option<Grid> {
+    let Grid(values) = grid;
+
+    solve_grid_iter(0, values)
+}
+
+fn solve_grid_iter(index: usize, mut values: [u8; 81]) -> Option<Grid> {
+    println!("initial {index}");
+    if index == VALUES_PER_GRID {
+        return Some(Grid(values));
+    }
+    if values[index] == 0 {
+        println!("Found 0");
+        for i in 1..=9 {
+            println!("position {index} Index {i}");
+            if is_valid(index, i, values) {
+                println!("Is valid!");
+                values[index] = i;
+                let deeper = solve_grid_iter(index + 1, values);
+                if deeper.is_some() {
+                    println!("Found a result!");
+                    return deeper;
+                } else {
+                    println!("Sadly no hit yet...");
+                }
+            }
+        }
+        return None;
+    } else {
+        return solve_grid_iter(index + 1, values);
+    }
+}
+
+fn is_valid(index: usize, value: u8, values: [u8; VALUES_PER_GRID]) -> bool {
+    is_row_valid(index, value, values)
+        && is_col_valid(index, value, values)
+        && is_block_valid(index, value, values)
+}
+
+fn is_col_valid(index: usize, value: u8, values: [u8; VALUES_PER_GRID]) -> bool {
+    let col_vals: Vec<_> = values
+        .chunks(VALUES_PER_GRID_SIDE)
+        .map(|values| {
+            values
+                .into_iter()
+                .enumerate()
+                .filter(|(i, _)| *i == index % VALUES_PER_GRID_SIDE)
+                .map(|(_, v)| v)
+                .next()
+                .unwrap()
+        })
+        .collect_vec();
+    // dbg!(&col_vals);
+    !col_vals.into_iter().any(|v| *v == value)
+}
+
+fn is_block_valid(index: usize, value: u8, values: [u8; VALUES_PER_GRID]) -> bool {
+    let xb = (index % 9) / 3;
+    let yb = (index / 9) / 3;
+    let first = 3 * 9 * yb + 3 * xb;
+    let indices = [
+        first,
+        first + 1,
+        first + 2,
+        first + 9,
+        first + 9 + 1,
+        first + 9 + 2,
+        first + 2 * 9,
+        first + 2 * 9 + 1,
+        first + 2 * 9 + 2,
+    ];
+    let block_vals: Vec<_> = indices.into_iter().map(|i| values[i]).collect_vec();
+    // dbg!(&block_vals);
+    !block_vals.into_iter().any(|v| v == value)
+}
+
+fn is_row_valid(index: usize, value: u8, values: [u8; VALUES_PER_GRID]) -> bool {
+    let row_vals: Vec<_> = values
+        .chunks(VALUES_PER_GRID_SIDE)
+        .enumerate()
+        .filter(|(i, value)| *i == index / VALUES_PER_GRID_SIDE)
+        .map(|(_, value)| value.to_vec())
+        .next()
+        .unwrap();
+    // dbg!(&row_vals);
+    !row_vals.into_iter().any(|v| v == value)
+}
 
 impl FromStr for Grid {
     type Err = ParseGridError;
@@ -124,6 +207,181 @@ impl fmt::Display for Grid {
             })
             .join("\n------+-------+------\n");
         write!(f, "{}", content)
+    }
+}
+
+#[cfg(test)]
+mod grid_solve_tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    #[test]
+    fn is_block_valid_test_true() {
+        let input = vec![
+            [1, 2, 3, 0, 0, 0, 0, 0, 0],
+            [4, 0, 6, 0, 0, 0, 0, 0, 0],
+            [7, 8, 9, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 1, 2, 3, 0, 0, 0],
+            [0, 0, 0, 4, 0, 6, 0, 0, 0],
+            [0, 0, 0, 7, 8, 9, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 1, 2, 3],
+            [0, 0, 0, 0, 0, 0, 4, 0, 6],
+            [0, 0, 0, 0, 0, 0, 7, 8, 9],
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
+
+        let first = is_block_valid(10, 5, input);
+        let second = is_block_valid(40, 5, input);
+        let third = is_block_valid(70, 5, input);
+
+        assert_eq!(true, first);
+        assert_eq!(true, second);
+        assert_eq!(true, third);
+    }
+
+    #[test]
+    fn is_block_valid_test_false() {
+        let input = vec![
+            [1, 2, 3, 0, 0, 0, 0, 0, 0],
+            [4, 0, 6, 0, 0, 0, 0, 0, 0],
+            [7, 8, 9, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 1, 2, 3, 0, 0, 0],
+            [0, 0, 0, 4, 0, 6, 0, 0, 0],
+            [0, 0, 0, 7, 8, 9, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 1, 2, 3],
+            [0, 0, 0, 0, 0, 0, 4, 0, 6],
+            [0, 0, 0, 0, 0, 0, 7, 8, 9],
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
+
+        let first = is_block_valid(10, 1, input);
+        let second = is_block_valid(40, 6, input);
+        let third = is_block_valid(70, 8, input);
+
+        assert_eq!(false, first);
+        assert_eq!(false, second);
+        assert_eq!(false, third);
+    }
+
+    #[test]
+    fn is_col_valid_test_true() {
+        let input = vec![
+            [1, 2, 3, 0, 0, 0, 0, 0, 0],
+            [4, 0, 6, 0, 0, 0, 0, 0, 0],
+            [7, 8, 9, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 1, 2, 3, 0, 0, 0],
+            [0, 0, 0, 4, 0, 6, 0, 0, 0],
+            [0, 0, 0, 7, 8, 9, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 1, 2, 3],
+            [0, 0, 0, 0, 0, 0, 4, 0, 6],
+            [0, 0, 0, 0, 0, 0, 7, 8, 9],
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
+
+        let first = is_col_valid(10, 5, input);
+        let second = is_col_valid(40, 5, input);
+        let third = is_col_valid(70, 5, input);
+
+        assert_eq!(true, first);
+        assert_eq!(true, second);
+        assert_eq!(true, third);
+    }
+
+    #[test]
+    fn is_col_valid_test_false() {
+        let input = vec![
+            [1, 2, 3, 0, 0, 0, 0, 0, 0],
+            [4, 0, 6, 0, 0, 0, 0, 0, 0],
+            [7, 8, 9, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 1, 2, 3, 0, 0, 0],
+            [0, 0, 0, 4, 0, 6, 0, 0, 0],
+            [0, 0, 0, 7, 8, 9, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 1, 2, 3],
+            [0, 0, 0, 0, 0, 0, 4, 0, 6],
+            [0, 0, 0, 0, 0, 0, 7, 8, 9],
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
+
+        let first = is_col_valid(10, 2, input);
+        let second = is_col_valid(40, 8, input);
+        let third = is_col_valid(70, 2, input);
+
+        assert_eq!(false, first);
+        assert_eq!(false, second);
+        assert_eq!(false, third);
+    }
+
+    #[test]
+    fn is_row_valid_test_true() {
+        let input = vec![
+            [1, 2, 3, 0, 0, 0, 0, 0, 0],
+            [4, 0, 6, 0, 0, 0, 0, 0, 0],
+            [7, 8, 9, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 1, 2, 3, 0, 0, 0],
+            [0, 0, 0, 4, 0, 6, 0, 0, 0],
+            [0, 0, 0, 7, 8, 9, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 1, 2, 3],
+            [0, 0, 0, 0, 0, 0, 4, 0, 6],
+            [0, 0, 0, 0, 0, 0, 7, 8, 9],
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
+
+        let first = is_row_valid(10, 5, input);
+        let second = is_row_valid(40, 5, input);
+        let third = is_row_valid(70, 5, input);
+
+        assert_eq!(true, first);
+        assert_eq!(true, second);
+        assert_eq!(true, third);
+    }
+
+    #[test]
+    fn is_row_valid_test_false() {
+        let input = vec![
+            [1, 2, 3, 0, 0, 0, 0, 0, 0],
+            [4, 0, 6, 0, 0, 0, 0, 0, 0],
+            [7, 8, 9, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 1, 2, 3, 0, 0, 0],
+            [0, 0, 0, 4, 0, 6, 0, 0, 0],
+            [0, 0, 0, 7, 8, 9, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 1, 2, 3],
+            [0, 0, 0, 0, 0, 0, 4, 0, 6],
+            [0, 0, 0, 0, 0, 0, 7, 8, 9],
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
+
+        let first = is_row_valid(10, 4, input);
+        let second = is_row_valid(40, 6, input);
+        let third = is_row_valid(70, 4, input);
+
+        assert_eq!(false, first);
+        assert_eq!(false, second);
+        assert_eq!(false, third);
     }
 }
 
