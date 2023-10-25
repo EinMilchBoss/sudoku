@@ -275,7 +275,7 @@ mod grid_display_trait_tests {
 
     #[test]
     fn to_string_test() {
-        let input = vec![
+        let grid = test_util::build_grid([
             [1, 2, 3, 4, 5, 6, 7, 8, 9],
             [0, 0, 0, 0, 0, 0, 0, 0, 0],
             [9, 8, 7, 6, 5, 4, 3, 2, 1],
@@ -285,13 +285,7 @@ mod grid_display_trait_tests {
             [8, 8, 8, 8, 8, 8, 8, 8, 8],
             [9, 9, 9, 9, 9, 9, 9, 9, 9],
             [1, 1, 1, 1, 1, 1, 1, 1, 1],
-        ]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>()
-        .try_into()
-        .unwrap();
-        let grid = Grid(input);
+        ]);
         let expected = [
             "1 2 3 | 4 5 6 | 7 8 9",
             "0 0 0 | 0 0 0 | 0 0 0",
@@ -309,25 +303,20 @@ mod grid_display_trait_tests {
 
         let actual = grid.to_string();
 
-        assert_eq!(expected, actual)
+        assert_eq!(expected, actual);
     }
 }
 
 #[cfg(test)]
 mod grid_from_str_trait_tests {
+    use pretty_assertions::assert_eq;
+
     use super::*;
 
     #[test]
     fn from_str_test_valid_chars() {
         let input_valid_chars = ["123456789"; 9].join("");
-        let expected = Grid(
-            vec![[1, 2, 3, 4, 5, 6, 7, 8, 9]; 9]
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>()
-                .try_into()
-                .unwrap(),
-        );
+        let expected = test_util::build_grid([[1, 2, 3, 4, 5, 6, 7, 8, 9]; 9]);
 
         let actual = input_valid_chars.parse::<Grid>();
 
@@ -344,13 +333,13 @@ mod grid_from_str_trait_tests {
             ParseGridError::InvalidChars(invalid_chars) => {
                 assert_eq!(9, invalid_chars.len());
             }
-            ParseGridError::InvalidLength(_) => panic!("Expected an `InvalidChars` error."),
+            _ => panic!("Expected an `InvalidChars` error."),
         }
     }
 
     #[test]
     fn from_str_test_right_amount() {
-        let input_empty_grid: String = "0".repeat(VALUES_PER_GRID);
+        let input_empty_grid = "0".repeat(VALUES_PER_GRID);
 
         let grid = input_empty_grid.parse();
 
@@ -360,7 +349,7 @@ mod grid_from_str_trait_tests {
     #[test]
     fn from_str_test_too_big() {
         let input_length = VALUES_PER_GRID + 1;
-        let input_bigger: String = "0".repeat(input_length);
+        let input_bigger = "0".repeat(input_length);
 
         let error = extract_errors(input_bigger.parse::<Grid>());
 
@@ -368,7 +357,7 @@ mod grid_from_str_trait_tests {
             ParseGridError::InvalidLength(actual_length) => {
                 assert_eq!(input_length, actual_length);
             }
-            ParseGridError::InvalidChars(_) => panic!("Expected an `InvalidLength` error."),
+            _ => panic!("Expected an `InvalidLength` error."),
         }
     }
 
@@ -383,7 +372,7 @@ mod grid_from_str_trait_tests {
             ParseGridError::InvalidLength(actual_length) => {
                 assert_eq!(input_length, actual_length);
             }
-            ParseGridError::InvalidChars(_) => panic!("Expected an `InvalidLength` error."),
+            _ => panic!("Expected an `InvalidLength` error."),
         }
     }
 
