@@ -1,13 +1,7 @@
-use std::{
-    fmt::{self},
-    process,
-    str::FromStr,
-};
+use std::process;
 
+use itertools::Itertools;
 use sudoku::*;
-use thiserror::Error;
-
-use itertools::{Either, Itertools};
 
 fn main() {
     let input =
@@ -21,13 +15,12 @@ fn main() {
             }
         };
 
-    match input.solve_grid() {
-        Some(solution) => println!("{solution}"),
-        None => {
-            eprintln!("Could not find a solution.");
-            process::exit(1);
-        }
-    }
+    let solution = input.solve_grid().unwrap_or_else(|| {
+        eprintln!("Could not find a solution.");
+        process::exit(1);
+    });
+
+    println!("{}", solution);
 }
 
 fn build_parse_error_message(error: &ParseGridError) -> String {
