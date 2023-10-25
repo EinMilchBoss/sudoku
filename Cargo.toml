@@ -10,4 +10,7 @@ rand = "0.8.5"
 itertools = "0.11.0"
 thiserror = "1.0.49"
 anyhow = "1.0.75"
+
+[dev-dependencies]
+rstest = "0.18.2"
 pretty_assertions = "1.4.0"

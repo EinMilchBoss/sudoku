@@ -5,7 +5,6 @@ use thiserror::Error;
 
 const VALUES_PER_GRID: usize = VALUES_PER_GRID_SIDE * VALUES_PER_GRID_SIDE;
 const VALUES_PER_GRID_SIDE: usize = 9;
-const VALUES_PER_BLOCK: usize = VALUES_PER_BLOCK_SIDE * VALUES_PER_BLOCK_SIDE;
 const VALUES_PER_BLOCK_SIDE: usize = 3;
 const EMPTY_TILE: u8 = 0;
 
@@ -49,18 +48,16 @@ fn is_value_possible(value: u8, index: usize, tiles: &[u8; VALUES_PER_GRID]) -> 
         && is_block_valid(value, index, tiles)
 }
 
-fn is_column_valid(value: u8, index: usize, tiles: &[u8; VALUES_PER_GRID]) -> bool {
-    let relative_index = index % VALUES_PER_GRID_SIDE;
-    (0..VALUES_PER_GRID_SIDE)
-        .map(|i| i * VALUES_PER_GRID_SIDE + relative_index)
-        .all(|absolute_index| tiles[absolute_index] != value)
-}
-
 fn is_row_valid(value: u8, index: usize, tiles: &[u8; VALUES_PER_GRID]) -> bool {
     let relative_index = index / VALUES_PER_GRID_SIDE;
-    (0..VALUES_PER_GRID_SIDE)
-        .map(|i| relative_index * VALUES_PER_GRID_SIDE + i)
-        .all(|absolute_index| tiles[absolute_index] != value)
+    let mut indices = (0..VALUES_PER_GRID_SIDE).map(|i| relative_index * VALUES_PER_GRID_SIDE + i);
+    is_value_not_taken(&mut indices, value, tiles)
+}
+
+fn is_column_valid(value: u8, index: usize, tiles: &[u8; VALUES_PER_GRID]) -> bool {
+    let relative_index = index % VALUES_PER_GRID_SIDE;
+    let mut indices = (0..VALUES_PER_GRID_SIDE).map(|i| i * VALUES_PER_GRID_SIDE + relative_index);
+    is_value_not_taken(&mut indices, value, tiles)
 }
 
 fn is_block_valid(value: u8, index: usize, tiles: &[u8; VALUES_PER_GRID]) -> bool {
@@ -68,14 +65,20 @@ fn is_block_valid(value: u8, index: usize, tiles: &[u8; VALUES_PER_GRID]) -> boo
     let block_y = (index / VALUES_PER_GRID_SIDE) / VALUES_PER_BLOCK_SIDE;
     let first_index =
         VALUES_PER_BLOCK_SIDE * VALUES_PER_GRID_SIDE * block_y + VALUES_PER_BLOCK_SIDE * block_x;
-    (0..VALUES_PER_BLOCK_SIDE)
-        .flat_map(|i| {
-            (0..VALUES_PER_BLOCK_SIDE).map(move |column_offset| {
-                let row_offset = i * VALUES_PER_GRID_SIDE;
-                first_index + row_offset + column_offset
-            })
+    let mut indices = (0..VALUES_PER_BLOCK_SIDE).flat_map(|i| {
+        (0..VALUES_PER_BLOCK_SIDE).map(move |column_offset| {
+            let row_offset = i * VALUES_PER_GRID_SIDE;
+            first_index + row_offset + column_offset
         })
-        .all(|absolute_index| tiles[absolute_index] != value)
+    });
+    is_value_not_taken(&mut indices, value, tiles)
+}
+
+fn is_value_not_taken<I>(indices: &mut I, value: u8, tiles: &[u8; VALUES_PER_GRID]) -> bool
+where
+    I: Iterator<Item = usize>,
+{
+    indices.all(|absolute_index| tiles[absolute_index] != value)
 }
 
 impl fmt::Display for Grid {
@@ -153,177 +156,114 @@ impl InvalidChar {
 }
 
 #[cfg(test)]
+mod test_util {
+    use super::*;
+
+    pub fn build_grid(x: [[u8; VALUES_PER_GRID_SIDE]; VALUES_PER_GRID_SIDE]) -> Grid {
+        let tiles = x
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap();
+        Grid(tiles)
+    }
+}
+
+#[cfg(test)]
 mod grid_solve_tests {
-    use pretty_assertions::assert_eq;
+    use rstest::*;
 
     use super::*;
 
-    #[test]
-    fn is_block_valid_test_true() {
-        let input = vec![
-            [1, 2, 3, 0, 0, 0, 0, 0, 0],
-            [4, 0, 6, 0, 0, 0, 0, 0, 0],
-            [7, 8, 9, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 1, 2, 3, 0, 0, 0],
-            [0, 0, 0, 4, 0, 6, 0, 0, 0],
-            [0, 0, 0, 7, 8, 9, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 1, 2, 3],
-            [0, 0, 0, 0, 0, 0, 4, 0, 6],
-            [0, 0, 0, 0, 0, 0, 7, 8, 9],
-        ]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>()
-        .try_into()
-        .unwrap();
-
-        let first = is_block_valid(10, 5, &input);
-        let second = is_block_valid(40, 5, &input);
-        let third = is_block_valid(70, 5, &input);
-
-        assert_eq!(true, first);
-        assert_eq!(true, second);
-        assert_eq!(true, third);
+    #[fixture]
+    fn row_and_column_grid() -> Grid {
+        test_util::build_grid([
+            [0, 1, 0, 0, 2, 0, 0, 3, 0],
+            [5, 0, 6, 7, 3, 8, 9, 4, 1],
+            [0, 3, 0, 0, 4, 0, 0, 5, 0],
+            [0, 4, 0, 0, 5, 0, 0, 6, 0],
+            [8, 5, 9, 1, 0, 2, 3, 7, 4],
+            [0, 6, 0, 0, 7, 0, 0, 8, 0],
+            [0, 7, 0, 0, 8, 0, 0, 9, 0],
+            [2, 8, 3, 4, 9, 5, 6, 0, 7],
+            [0, 9, 0, 0, 1, 0, 0, 2, 0],
+        ])
     }
 
-    #[test]
-    fn is_block_valid_test_false() {
-        let input = vec![
-            [1, 2, 3, 0, 0, 0, 0, 0, 0],
-            [4, 0, 6, 0, 0, 0, 0, 0, 0],
+    #[fixture]
+    fn block_grid() -> Grid {
+        test_util::build_grid([
+            [0, 2, 3, 0, 0, 0, 0, 0, 0],
+            [4, 5, 6, 0, 0, 0, 0, 0, 0],
             [7, 8, 9, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 1, 2, 3, 0, 0, 0],
             [0, 0, 0, 4, 0, 6, 0, 0, 0],
             [0, 0, 0, 7, 8, 9, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 1, 2, 3],
-            [0, 0, 0, 0, 0, 0, 4, 0, 6],
-            [0, 0, 0, 0, 0, 0, 7, 8, 9],
-        ]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>()
-        .try_into()
-        .unwrap();
-
-        let first = is_block_valid(10, 1, &input);
-        let second = is_block_valid(40, 6, &input);
-        let third = is_block_valid(70, 8, &input);
-
-        assert_eq!(false, first);
-        assert_eq!(false, second);
-        assert_eq!(false, third);
+            [0, 0, 0, 0, 0, 0, 4, 5, 6],
+            [0, 0, 0, 0, 0, 0, 7, 8, 0],
+        ])
     }
 
-    #[test]
-    fn is_col_valid_test_true() {
-        let input = vec![
-            [1, 2, 3, 0, 0, 0, 0, 0, 0],
-            [4, 0, 6, 0, 0, 0, 0, 0, 0],
-            [7, 8, 9, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 1, 2, 3, 0, 0, 0],
-            [0, 0, 0, 4, 0, 6, 0, 0, 0],
-            [0, 0, 0, 7, 8, 9, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 1, 2, 3],
-            [0, 0, 0, 0, 0, 0, 4, 0, 6],
-            [0, 0, 0, 0, 0, 0, 7, 8, 9],
-        ]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>()
-        .try_into()
-        .unwrap();
+    #[rstest]
+    #[case(true, 2, 10)]
+    #[case(true, 6, 40)]
+    #[case(true, 1, 70)]
+    #[case(false, 3, 10)]
+    #[case(false, 7, 40)]
+    #[case(false, 8, 70)]
+    fn is_row_valid_test(
+        row_and_column_grid: Grid,
+        #[case] expected: bool,
+        #[case] value: u8,
+        #[case] index: usize,
+    ) {
+        let Grid(tiles) = row_and_column_grid;
 
-        let first = is_column_valid(10, 5, &input);
-        let second = is_column_valid(40, 5, &input);
-        let third = is_column_valid(70, 5, &input);
+        let actual = is_column_valid(value, index, &tiles);
 
-        assert_eq!(true, first);
-        assert_eq!(true, second);
-        assert_eq!(true, third);
+        assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn is_col_valid_test_false() {
-        let input = vec![
-            [1, 2, 3, 0, 0, 0, 0, 0, 0],
-            [4, 0, 6, 0, 0, 0, 0, 0, 0],
-            [7, 8, 9, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 1, 2, 3, 0, 0, 0],
-            [0, 0, 0, 4, 0, 6, 0, 0, 0],
-            [0, 0, 0, 7, 8, 9, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 1, 2, 3],
-            [0, 0, 0, 0, 0, 0, 4, 0, 6],
-            [0, 0, 0, 0, 0, 0, 7, 8, 9],
-        ]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>()
-        .try_into()
-        .unwrap();
+    #[rstest]
+    #[case(true, 2, 10)]
+    #[case(true, 6, 40)]
+    #[case(true, 1, 70)]
+    #[case(false, 5, 10)]
+    #[case(false, 9, 40)]
+    #[case(false, 4, 70)]
+    fn is_column_valid_test(
+        row_and_column_grid: Grid,
+        #[case] expected: bool,
+        #[case] value: u8,
+        #[case] index: usize,
+    ) {
+        let Grid(tiles) = row_and_column_grid;
 
-        let first = is_column_valid(10, 2, &input);
-        let second = is_column_valid(40, 8, &input);
-        let third = is_column_valid(70, 2, &input);
+        let actual = is_column_valid(value, index, &tiles);
 
-        assert_eq!(false, first);
-        assert_eq!(false, second);
-        assert_eq!(false, third);
+        assert_eq!(expected, actual);
     }
 
-    #[test]
-    fn is_row_valid_test_true() {
-        let input = vec![
-            [1, 2, 3, 0, 0, 0, 0, 0, 0],
-            [4, 0, 6, 0, 0, 0, 0, 0, 0],
-            [7, 8, 9, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 1, 2, 3, 0, 0, 0],
-            [0, 0, 0, 4, 0, 6, 0, 0, 0],
-            [0, 0, 0, 7, 8, 9, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 1, 2, 3],
-            [0, 0, 0, 0, 0, 0, 4, 0, 6],
-            [0, 0, 0, 0, 0, 0, 7, 8, 9],
-        ]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>()
-        .try_into()
-        .unwrap();
+    #[rstest]
+    #[case(true, 1, 0)]
+    #[case(true, 5, 40)]
+    #[case(true, 9, 80)]
+    #[case(false, 5, 0)]
+    #[case(false, 9, 40)]
+    #[case(false, 1, 80)]
+    fn is_block_valid_test(
+        block_grid: Grid,
+        #[case] expected: bool,
+        #[case] value: u8,
+        #[case] index: usize,
+    ) {
+        let Grid(tiles) = block_grid;
 
-        let first = is_row_valid(10, 5, &input);
-        let second = is_row_valid(40, 5, &input);
-        let third = is_row_valid(70, 5, &input);
+        let actual = is_block_valid(value, index, &tiles);
 
-        assert_eq!(true, first);
-        assert_eq!(true, second);
-        assert_eq!(true, third);
-    }
-
-    #[test]
-    fn is_row_valid_test_false() {
-        let input = vec![
-            [1, 2, 3, 0, 0, 0, 0, 0, 0],
-            [4, 0, 6, 0, 0, 0, 0, 0, 0],
-            [7, 8, 9, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 1, 2, 3, 0, 0, 0],
-            [0, 0, 0, 4, 0, 6, 0, 0, 0],
-            [0, 0, 0, 7, 8, 9, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 1, 2, 3],
-            [0, 0, 0, 0, 0, 0, 4, 0, 6],
-            [0, 0, 0, 0, 0, 0, 7, 8, 9],
-        ]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>()
-        .try_into()
-        .unwrap();
-
-        let first = is_row_valid(10, 4, &input);
-        let second = is_row_valid(40, 6, &input);
-        let third = is_row_valid(70, 4, &input);
-
-        assert_eq!(false, first);
-        assert_eq!(false, second);
-        assert_eq!(false, third);
+        assert_eq!(expected, actual);
     }
 }
 
