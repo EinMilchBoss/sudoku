@@ -159,8 +159,8 @@ impl InvalidChar {
 mod test_util {
     use super::*;
 
-    pub fn build_grid(x: [[u8; VALUES_PER_GRID_SIDE]; VALUES_PER_GRID_SIDE]) -> Grid {
-        let tiles = x
+    pub fn build_grid(lines: [[u8; VALUES_PER_GRID_SIDE]; VALUES_PER_GRID_SIDE]) -> Grid {
+        let tiles = lines
             .into_iter()
             .flatten()
             .collect::<Vec<_>>()
