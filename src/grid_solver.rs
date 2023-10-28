@@ -27,17 +27,18 @@ impl GridSolver {
             return;
         }
 
-        if tiles[index] == EMPTY_TILE {
-            for value in 1..=9 {
-                if is_value_possible(value, index, &tiles) {
-                    self.solve_iter(index + 1, {
-                        tiles[index] = value;
-                        tiles
-                    });
-                }
+        if tiles[index] != EMPTY_TILE {
+            self.solve_iter(index + 1, tiles);
+            return;
+        }
+
+        for value in 1..=9 {
+            if is_value_possible(value, index, &tiles) {
+                self.solve_iter(index + 1, {
+                    tiles[index] = value;
+                    tiles
+                });
             }
-        } else {
-            self.solve_iter(index + 1, tiles)
         }
     }
 }
