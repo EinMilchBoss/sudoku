@@ -1,4 +1,4 @@
-use std::{fmt, str::FromStr};
+use std::{fmt, str};
 
 use itertools::{Either, Itertools};
 use thiserror::Error;
@@ -16,12 +16,10 @@ impl Grid {
     pub fn solve(&self) -> Vec<Grid> {
         GridSolver::new(*self).solve()
     }
-}
 
-impl fmt::Display for Grid {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    pub fn to_pretty_string(&self) -> String {
         let Self(values) = self;
-        let content = values
+        values
             .chunks(TILES_PER_BLOCK_SIDE * TILES_PER_GRID_SIDE)
             .map(|layer| {
                 layer
@@ -33,12 +31,17 @@ impl fmt::Display for Grid {
                     })
                     .join("\n")
             })
-            .join("\n------+-------+------\n");
-        write!(f, "{}", content)
+            .join("\n------+-------+------\n")
     }
 }
 
-impl FromStr for Grid {
+impl fmt::Display for Grid {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "")
+    }
+}
+
+impl str::FromStr for Grid {
     type Err = ParseGridError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -93,14 +96,14 @@ impl InvalidChar {
 }
 
 #[cfg(test)]
-mod grid_display_trait_tests {
-    use pretty_assertions::assert_eq;
+mod test_util {
+    use rstest::fixture;
 
-    use crate::test_util;
+    use crate::*;
 
-    #[test]
-    fn to_string_test() {
-        let grid = test_util::build_grid([
+    #[fixture]
+    pub fn grid() -> Grid {
+        test_util::build_grid([
             [1, 2, 3, 4, 5, 6, 7, 8, 9],
             [0, 0, 0, 0, 0, 0, 0, 0, 0],
             [9, 8, 7, 6, 5, 4, 3, 2, 1],
@@ -110,7 +113,19 @@ mod grid_display_trait_tests {
             [8, 8, 8, 8, 8, 8, 8, 8, 8],
             [9, 9, 9, 9, 9, 9, 9, 9, 9],
             [1, 1, 1, 1, 1, 1, 1, 1, 1],
-        ]);
+        ])
+    }
+}
+
+#[cfg(test)]
+mod grid_tests {
+    use pretty_assertions::assert_eq;
+    use rstest::rstest;
+
+    use crate::{grid::test_util::grid, *};
+
+    #[rstest]
+    fn to_pretty_string_test(grid: Grid) {
         let expected = [
             "1 2 3 | 4 5 6 | 7 8 9",
             "0 0 0 | 0 0 0 | 0 0 0",
@@ -125,6 +140,24 @@ mod grid_display_trait_tests {
             "1 1 1 | 1 1 1 | 1 1 1",
         ]
         .join("\n");
+
+        let actual = grid.to_pretty_string();
+
+        assert_eq!(expected, actual);
+    }
+}
+
+#[cfg(test)]
+mod grid_display_trait_tests {
+    use pretty_assertions::assert_eq;
+    use rstest::rstest;
+
+    use crate::{grid::test_util::grid, *};
+
+    #[rstest]
+    fn to_string_test(grid: Grid) {
+        let expected =
+            "123456789000000000987654321000000000666666666777777777888888888999999999111111111";
 
         let actual = grid.to_string();
 

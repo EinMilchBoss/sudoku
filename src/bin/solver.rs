@@ -23,19 +23,16 @@ struct Cli {
 fn main() {
     let cli = Cli::parse();
 
-    let input =
-        match "295743861431865900876192543387459216612387495549216738763534189928671354154938600"
-            .parse::<Grid>()
-        {
-            Ok(grid) => grid,
-            Err(error) => {
-                eprintln!(
-                    "Could not parse input to a valid sudoku grid.\n{error_message}",
-                    error_message = build_parse_error_message(&error)
-                );
-                process::exit(1);
-            }
-        };
+    let input = match cli.grid.parse::<Grid>() {
+        Ok(grid) => grid,
+        Err(error) => {
+            eprintln!(
+                "Could not parse input to a valid sudoku grid.\n{error_message}",
+                error_message = build_parse_error_message(&error)
+            );
+            process::exit(1);
+        }
+    };
 
     let solutions = input.solve();
 
@@ -44,10 +41,17 @@ fn main() {
         process::exit(0);
     }
 
-    solutions
-        .iter()
-        .enumerate()
-        .for_each(|(i, solution)| println!("Solution {number}:\n{solution}", number = i + 1));
+    if cli.pretty_print {
+        solutions.iter().enumerate().for_each(|(i, solution)| {
+            println!(
+                "Solution {number}:\n{grid}",
+                number = i + 1,
+                grid = solution.to_pretty_string()
+            )
+        });
+    } else {
+        solutions.iter().for_each(|solution| println!("{solution}"));
+    }
 }
 
 fn build_parse_error_message(error: &ParseGridError) -> String {
