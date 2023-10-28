@@ -15,36 +15,34 @@ impl Grid {
     pub fn solve(&self) -> Option<Vec<Grid>> {
         let Grid(tiles) = self;
 
-        solve_grid_iter(0, *tiles, Vec::new())
+        let mut output_arg = Vec::new();
+        solve_grid_iter(0, *tiles, &mut output_arg);
+        if !output_arg.is_empty() {
+            Some(output_arg)
+        } else {
+            None
+        }
     }
 }
 
-fn solve_grid_iter(index: usize, mut tiles: [u8; 81], mut results: Vec<Grid>) -> Option<Vec<Grid>> {
+fn solve_grid_iter(index: usize, mut tiles: [u8; 81], results: &mut Vec<Grid>) {
     if index == TILES_PER_GRID {
         results.push(Grid(tiles));
-        return Some(results);
+        return;
     }
 
     if tiles[index] == EMPTY_TILE {
         for value in 1..=9 {
             if is_value_possible(value, index, &tiles) {
-                let next_iter = solve_grid_iter(
+                solve_grid_iter(
                     index + 1,
                     {
                         tiles[index] = value;
                         tiles
                     },
-                    results.clone(),
+                    results,
                 );
-                if let Some(next_results) = next_iter {
-                    results = next_results;
-                }
             }
-        }
-        if !results.is_empty() {
-            Some(results)
-        } else {
-            None
         }
     } else {
         solve_grid_iter(index + 1, tiles, results)
