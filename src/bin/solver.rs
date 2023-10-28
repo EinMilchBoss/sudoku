@@ -5,22 +5,30 @@ use sudoku::*;
 
 fn main() {
     let input =
-        match "108720005002008000000009070009340050000007000060000001900000400004250030000080000"
+        match "295743861431865900876192543387459216612387495549216738763534189928671354154938600"
             .parse::<Grid>()
         {
             Ok(grid) => grid,
             Err(error) => {
-                eprintln!("{}", build_parse_error_message(&error));
+                eprintln!(
+                    "Could not parse input to a valid sudoku grid.\n{error_message}",
+                    error_message = build_parse_error_message(&error)
+                );
                 process::exit(1);
             }
         };
 
-    let solution = input.solve_grid().unwrap_or_else(|| {
-        eprintln!("Could not find a solution.");
-        process::exit(1);
+    let solutions = input.solve().unwrap_or_else(|| {
+        println!("Could not find a solution.");
+        process::exit(0);
     });
 
-    println!("{}", solution);
+    solutions.iter().enumerate().for_each(|(i, solution)| {
+        println!(
+            "Solution {solution_number}:\n{solution}",
+            solution_number = i + 1
+        )
+    });
 }
 
 fn build_parse_error_message(error: &ParseGridError) -> String {

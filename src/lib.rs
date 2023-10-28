@@ -3,78 +3,87 @@ use std::{fmt, str::FromStr};
 use itertools::{Either, Itertools};
 use thiserror::Error;
 
-const VALUES_PER_GRID: usize = VALUES_PER_GRID_SIDE * VALUES_PER_GRID_SIDE;
-const VALUES_PER_GRID_SIDE: usize = 9;
-const VALUES_PER_BLOCK_SIDE: usize = 3;
+const TILES_PER_GRID: usize = TILES_PER_GRID_SIDE * TILES_PER_GRID_SIDE;
+const TILES_PER_GRID_SIDE: usize = 9;
+const TILES_PER_BLOCK_SIDE: usize = 3;
 const EMPTY_TILE: u8 = 0;
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct Grid([u8; VALUES_PER_GRID]);
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Grid([u8; TILES_PER_GRID]);
 
 impl Grid {
-    pub fn solve_grid(&self) -> Option<Grid> {
+    pub fn solve(&self) -> Option<Vec<Grid>> {
         let Grid(tiles) = self;
 
-        solve_grid_iter(0, *tiles)
+        solve_grid_iter(0, *tiles, Vec::new())
     }
 }
 
-fn solve_grid_iter(index: usize, mut tiles: [u8; 81]) -> Option<Grid> {
-    if index == VALUES_PER_GRID {
-        return Some(Grid(tiles));
+fn solve_grid_iter(index: usize, mut tiles: [u8; 81], mut results: Vec<Grid>) -> Option<Vec<Grid>> {
+    if index == TILES_PER_GRID {
+        results.push(Grid(tiles));
+        return Some(results);
     }
 
     if tiles[index] == EMPTY_TILE {
         for value in 1..=9 {
             if is_value_possible(value, index, &tiles) {
-                let next = solve_grid_iter(index + 1, {
-                    tiles[index] = value;
-                    tiles
-                });
-                if next.is_some() {
-                    return next;
+                let next_iter = solve_grid_iter(
+                    index + 1,
+                    {
+                        tiles[index] = value;
+                        tiles
+                    },
+                    results.clone(),
+                );
+                if let Some(next_results) = next_iter {
+                    results = next_results;
                 }
             }
         }
-        None
+        if !results.is_empty() {
+            Some(results)
+        } else {
+            None
+        }
     } else {
-        solve_grid_iter(index + 1, tiles)
+        solve_grid_iter(index + 1, tiles, results)
     }
 }
 
-fn is_value_possible(value: u8, index: usize, tiles: &[u8; VALUES_PER_GRID]) -> bool {
+fn is_value_possible(value: u8, index: usize, tiles: &[u8; TILES_PER_GRID]) -> bool {
     is_row_valid(value, index, tiles)
         && is_column_valid(value, index, tiles)
         && is_block_valid(value, index, tiles)
 }
 
-fn is_row_valid(value: u8, index: usize, tiles: &[u8; VALUES_PER_GRID]) -> bool {
-    let relative_index = index / VALUES_PER_GRID_SIDE;
-    let mut indices = (0..VALUES_PER_GRID_SIDE).map(|i| relative_index * VALUES_PER_GRID_SIDE + i);
+fn is_row_valid(value: u8, index: usize, tiles: &[u8; TILES_PER_GRID]) -> bool {
+    let relative_index = index / TILES_PER_GRID_SIDE;
+    let mut indices = (0..TILES_PER_GRID_SIDE).map(|i| relative_index * TILES_PER_GRID_SIDE + i);
     is_value_not_taken(&mut indices, value, tiles)
 }
 
-fn is_column_valid(value: u8, index: usize, tiles: &[u8; VALUES_PER_GRID]) -> bool {
-    let relative_index = index % VALUES_PER_GRID_SIDE;
-    let mut indices = (0..VALUES_PER_GRID_SIDE).map(|i| i * VALUES_PER_GRID_SIDE + relative_index);
+fn is_column_valid(value: u8, index: usize, tiles: &[u8; TILES_PER_GRID]) -> bool {
+    let relative_index = index % TILES_PER_GRID_SIDE;
+    let mut indices = (0..TILES_PER_GRID_SIDE).map(|i| i * TILES_PER_GRID_SIDE + relative_index);
     is_value_not_taken(&mut indices, value, tiles)
 }
 
-fn is_block_valid(value: u8, index: usize, tiles: &[u8; VALUES_PER_GRID]) -> bool {
-    let block_x = (index % VALUES_PER_GRID_SIDE) / VALUES_PER_BLOCK_SIDE;
-    let block_y = (index / VALUES_PER_GRID_SIDE) / VALUES_PER_BLOCK_SIDE;
+fn is_block_valid(value: u8, index: usize, tiles: &[u8; TILES_PER_GRID]) -> bool {
+    let block_x = (index % TILES_PER_GRID_SIDE) / TILES_PER_BLOCK_SIDE;
+    let block_y = (index / TILES_PER_GRID_SIDE) / TILES_PER_BLOCK_SIDE;
     let first_index =
-        VALUES_PER_BLOCK_SIDE * VALUES_PER_GRID_SIDE * block_y + VALUES_PER_BLOCK_SIDE * block_x;
-    let mut indices = (0..VALUES_PER_BLOCK_SIDE).flat_map(|i| {
-        (0..VALUES_PER_BLOCK_SIDE).map(move |column_offset| {
-            let row_offset = i * VALUES_PER_GRID_SIDE;
+        TILES_PER_BLOCK_SIDE * TILES_PER_GRID_SIDE * block_y + TILES_PER_BLOCK_SIDE * block_x;
+    let mut indices = (0..TILES_PER_BLOCK_SIDE).flat_map(|i| {
+        (0..TILES_PER_BLOCK_SIDE).map(move |column_offset| {
+            let row_offset = i * TILES_PER_GRID_SIDE;
             first_index + row_offset + column_offset
         })
     });
     is_value_not_taken(&mut indices, value, tiles)
 }
 
-fn is_value_not_taken<I>(indices: &mut I, value: u8, tiles: &[u8; VALUES_PER_GRID]) -> bool
+fn is_value_not_taken<I>(indices: &mut I, value: u8, tiles: &[u8; TILES_PER_GRID]) -> bool
 where
     I: Iterator<Item = usize>,
 {
@@ -85,12 +94,12 @@ impl fmt::Display for Grid {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Self(values) = self;
         let content = values
-            .chunks(VALUES_PER_BLOCK_SIDE * VALUES_PER_GRID_SIDE)
+            .chunks(TILES_PER_BLOCK_SIDE * TILES_PER_GRID_SIDE)
             .map(|layer| {
                 layer
-                    .chunks(VALUES_PER_GRID_SIDE)
+                    .chunks(TILES_PER_GRID_SIDE)
                     .map(|row| {
-                        row.chunks(VALUES_PER_BLOCK_SIDE)
+                        row.chunks(TILES_PER_BLOCK_SIDE)
                             .map(|block_row| block_row.iter().join(" "))
                             .join(" | ")
                     })
@@ -106,7 +115,7 @@ impl FromStr for Grid {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let length = s.chars().count();
-        if length != VALUES_PER_GRID {
+        if length != TILES_PER_GRID {
             return Err(ParseGridError::InvalidLength(length));
         }
 
@@ -136,7 +145,7 @@ impl FromStr for Grid {
 pub enum ParseGridError {
     #[error("One or more chars were invalid.")]
     InvalidChars(Vec<InvalidChar>),
-    #[error("Expected an input of size {}, found {} instead.", VALUES_PER_GRID, .0)]
+    #[error("Expected an input of size {}, found {} instead.", TILES_PER_GRID, .0)]
     InvalidLength(usize),
 }
 
@@ -159,7 +168,7 @@ impl InvalidChar {
 mod test_util {
     use super::*;
 
-    pub fn build_grid(lines: [[u8; VALUES_PER_GRID_SIDE]; VALUES_PER_GRID_SIDE]) -> Grid {
+    pub fn build_grid(lines: [[u8; TILES_PER_GRID_SIDE]; TILES_PER_GRID_SIDE]) -> Grid {
         let tiles = lines
             .into_iter()
             .flatten()
@@ -171,7 +180,7 @@ mod test_util {
 }
 
 #[cfg(test)]
-mod grid_solve_tests {
+mod grid_tests {
     use rstest::*;
 
     use super::*;
@@ -339,16 +348,16 @@ mod grid_from_str_trait_tests {
 
     #[test]
     fn from_str_test_right_amount() {
-        let input_empty_grid = "0".repeat(VALUES_PER_GRID);
+        let input_empty_grid = "0".repeat(TILES_PER_GRID);
 
         let grid = input_empty_grid.parse();
 
-        assert_eq!(Ok(Grid([0; VALUES_PER_GRID])), grid);
+        assert_eq!(Ok(Grid([0; TILES_PER_GRID])), grid);
     }
 
     #[test]
     fn from_str_test_too_big() {
-        let input_length = VALUES_PER_GRID + 1;
+        let input_length = TILES_PER_GRID + 1;
         let input_bigger = "0".repeat(input_length);
 
         let error = extract_errors(input_bigger.parse::<Grid>());
@@ -363,7 +372,7 @@ mod grid_from_str_trait_tests {
 
     #[test]
     fn from_str_test_too_small() {
-        let input_length = VALUES_PER_GRID - 1;
+        let input_length = TILES_PER_GRID - 1;
         let input_smaller: String = "0".repeat(input_length);
 
         let error = extract_errors(input_smaller.parse::<Grid>());
