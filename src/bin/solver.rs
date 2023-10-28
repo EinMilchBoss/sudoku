@@ -1,9 +1,28 @@
 use std::process;
 
+use clap::Parser;
 use itertools::Itertools;
 use sudoku::*;
 
+#[derive(Parser)]
+#[command(name = "Sudoku Solver")]
+#[command(author = "EinMilchBoss")]
+#[command(version)]
+#[command(
+    about = "A simple sudoku solver.",
+    long_about = "A simple sudoku solver that searches for all possible solutions."
+)]
+struct Cli {
+    /// The grid to be solved
+    grid: String,
+    /// Print the solutions as actual grids
+    #[arg(short, long)]
+    pretty_print: bool,
+}
+
 fn main() {
+    let cli = Cli::parse();
+
     let input =
         match "295743861431865900876192543387459216612387495549216738763534189928671354154938600"
             .parse::<Grid>()
