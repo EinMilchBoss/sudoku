@@ -18,17 +18,17 @@ fn main() {
             }
         };
 
-    let solutions = input.solve().unwrap_or_else(|| {
+    let solutions = input.solve();
+
+    if solutions.is_empty() {
         println!("Could not find a solution.");
         process::exit(0);
-    });
+    }
 
-    solutions.iter().enumerate().for_each(|(i, solution)| {
-        println!(
-            "Solution {solution_number}:\n{solution}",
-            solution_number = i + 1
-        )
-    });
+    solutions
+        .iter()
+        .enumerate()
+        .for_each(|(i, solution)| println!("Solution {number}:\n{solution}", number = i + 1));
 }
 
 fn build_parse_error_message(error: &ParseGridError) -> String {
