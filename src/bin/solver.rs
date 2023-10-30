@@ -23,22 +23,19 @@ struct Cli {
 fn main() {
     let cli = Cli::parse();
 
-    let input = match cli.grid.parse::<Grid>() {
-        Ok(grid) => grid,
-        Err(error) => {
-            eprintln!(
-                "Could not parse input to a valid sudoku grid.\n{error_message}",
-                error_message = build_parse_error_message(&error)
-            );
-            process::exit(1);
-        }
-    };
+    let input = cli.grid.parse::<Grid>().unwrap_or_else(|error| {
+        eprintln!(
+            "Could not parse input to a valid sudoku grid.\n{error_message}",
+            error_message = build_parse_error_message(&error)
+        );
+        process::exit(1);
+    });
 
     let solutions = input.solve();
 
     if solutions.is_empty() {
         println!("Could not find a solution.");
-        process::exit(0);
+        return;
     }
 
     if cli.pretty_print {
