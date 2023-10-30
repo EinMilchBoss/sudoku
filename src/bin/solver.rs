@@ -61,8 +61,13 @@ fn build_parse_error_message(error: &ParseGridError) -> String {
 }
 
 fn write_bullet_points(invalid_chars: &[InvalidChar]) -> String {
-    invalid_chars
-        .iter()
-        .map(InvalidChar::to_bullet_point)
-        .join("\n")
+    invalid_chars.iter().map(write_bullet_point).join("\n")
+}
+
+pub fn write_bullet_point(invalid_char: &InvalidChar) -> String {
+    let InvalidChar {
+        index,
+        invalid_char,
+    } = invalid_char;
+    format!("- Invalid char '{}' at position {}.", invalid_char, index)
 }

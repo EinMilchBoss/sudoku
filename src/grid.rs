@@ -83,17 +83,8 @@ pub enum ParseGridError {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct InvalidChar {
-    index: usize,
-    invalid_char: char,
-}
-
-impl InvalidChar {
-    pub fn to_bullet_point(&self) -> String {
-        format!(
-            "- Invalid char '{}' at position {}.",
-            self.invalid_char, self.index
-        )
-    }
+    pub index: usize,
+    pub invalid_char: char,
 }
 
 #[cfg(test)]
