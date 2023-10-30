@@ -44,9 +44,9 @@ fn main() {
     if cli.pretty_print {
         solutions.iter().enumerate().for_each(|(i, solution)| {
             println!(
-                "Solution {number}:\n{grid}",
+                "Solution {number}:\n{pretty_solution}",
                 number = i + 1,
-                grid = solution.to_pretty_string()
+                pretty_solution = solution.to_pretty_string()
             )
         });
     } else {

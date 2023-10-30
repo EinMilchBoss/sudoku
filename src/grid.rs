@@ -37,7 +37,8 @@ impl Grid {
 
 impl fmt::Display for Grid {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "")
+        let Self(tiles) = self;
+        write!(f, "{}", tiles.iter().join(""))
     }
 }
 
