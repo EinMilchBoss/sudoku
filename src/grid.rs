@@ -1,12 +1,13 @@
-use std::{fmt, str};
+use std::{collections::HashSet, fmt, str};
 
 use itertools::{Either, Itertools};
 use thiserror::Error;
 
-use crate::GridSolver;
+use crate::{GridSolver, EMPTY_TILE};
 
 pub const TILES_PER_GRID: usize = TILES_PER_GRID_SIDE * TILES_PER_GRID_SIDE;
 pub const TILES_PER_GRID_SIDE: usize = 9;
+pub const TILES_PER_BLOCK: usize = TILES_PER_BLOCK_SIDE * TILES_PER_BLOCK_SIDE;
 pub const TILES_PER_BLOCK_SIDE: usize = 3;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -51,7 +52,7 @@ impl str::FromStr for Grid {
             return Err(ParseGridError::InvalidLength(length));
         }
 
-        let (values, errors): (Vec<_>, Vec<_>) = s
+        let (values, invalid_chars): (Vec<_>, Vec<_>) = s
             .chars()
             .enumerate()
             .map(|(index, char)| {
@@ -65,20 +66,111 @@ impl str::FromStr for Grid {
                 Err(error) => Either::Right(error),
             });
 
-        if errors.is_empty() {
-            Ok(Grid(values.try_into().unwrap()))
-        } else {
-            Err(ParseGridError::InvalidChars(errors))
+        if !invalid_chars.is_empty() {
+            return Err(ParseGridError::InvalidChars(invalid_chars));
         }
+
+        let invalid_areas = invalid_rows(&values)
+            .chain(invalid_columns(&values))
+            .chain(invalid_blocks(&values))
+            .collect_vec();
+
+        if !invalid_areas.is_empty() {
+            return Err(ParseGridError::InvalidAreas(invalid_areas));
+        }
+
+        Ok(Grid(values.try_into().unwrap()))
     }
+}
+
+fn invalid_blocks(tiles: &[u8]) -> impl Iterator<Item = InvalidArea> + '_ {
+    let block_tiles_iter = (0..TILES_PER_BLOCK_SIDE).flat_map(move |column_offset| {
+        (0..TILES_PER_BLOCK_SIDE).map(move |row_offset| {
+            (0..TILES_PER_BLOCK)
+                .map(move |i| {
+                    let block_row_offset = i / 3;
+                    let fix_offset = row_offset * TILES_PER_BLOCK_SIDE + column_offset;
+                    fix_offset + block_row_offset * TILES_PER_BLOCK_SIDE + block_row_offset
+                })
+                .map(move |index| tiles[index])
+        })
+    });
+
+    invalid_elements(block_tiles_iter, &InvalidArea::Block)
+}
+
+fn invalid_columns(tiles: &[u8]) -> impl Iterator<Item = InvalidArea> + '_ {
+    let column_tiles_iter = (0..TILES_PER_GRID_SIDE).map(move |column_offset| {
+        (0..TILES_PER_GRID_SIDE)
+            .map(move |row_offset| tiles[row_offset * TILES_PER_GRID_SIDE + column_offset])
+    });
+
+    invalid_elements(column_tiles_iter, &InvalidArea::Column)
+}
+
+fn invalid_rows(tiles: &[u8]) -> impl Iterator<Item = InvalidArea> + '_ {
+    let row_tiles_iter = (0..TILES_PER_GRID_SIDE).map(move |column_offset| {
+        (0..TILES_PER_GRID_SIDE)
+            .map(move |row_offset| tiles[column_offset * TILES_PER_GRID_SIDE + row_offset])
+    });
+
+    invalid_elements(row_tiles_iter, &InvalidArea::Row)
+}
+
+fn invalid_elements<'a, II, IO, F>(
+    tiles_iters: IO,
+    to_error_element: &'a F,
+) -> impl Iterator<Item = InvalidArea> + 'a
+where
+    II: Iterator<Item = u8> + 'a,
+    IO: Iterator<Item = II> + 'a,
+    F: Fn(InvalidTile) -> InvalidArea + 'a,
+{
+    tiles_iters
+        .enumerate()
+        .flat_map(move |(index, tiles_iter)| invalid_element(index, tiles_iter, to_error_element))
+}
+
+fn invalid_element<F, I>(
+    index: usize,
+    area: I,
+    to_error_element: F,
+) -> impl Iterator<Item = InvalidArea>
+where
+    I: Iterator<Item = u8>,
+    F: Fn(InvalidTile) -> InvalidArea,
+{
+    let occurrences = area.counts_by(|value| value);
+    occurrences.into_iter().filter_map(move |(value, count)| {
+        if count > 1 && value != EMPTY_TILE {
+            Some(to_error_element(InvalidTile { index, value }))
+        } else {
+            None
+        }
+    })
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ParseGridError {
     #[error("One or more chars were invalid.")]
     InvalidChars(Vec<InvalidChar>),
+    #[error("One or more areas (rows, columns or blocks) were invalid.")]
+    InvalidAreas(Vec<InvalidArea>),
     #[error("Expected an input of size {}, found {} instead.", TILES_PER_GRID, .0)]
     InvalidLength(usize),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum InvalidArea {
+    Row(InvalidTile),
+    Column(InvalidTile),
+    Block(InvalidTile),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct InvalidTile {
+    index: usize,
+    value: u8,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -225,6 +317,21 @@ mod grid_from_str_trait_tests {
             _ => panic!("Expected an `InvalidLength` error."),
         }
     }
+
+    // #[test]
+    // fn from_str_test_invalid_values() {
+    //     let input_length = TILES_PER_GRID - 1;
+    //     let input_smaller: String = "0".repeat(input_length);
+
+    //     let error = extract_errors(input_smaller.parse::<Grid>());
+
+    //     match error {
+    //         ParseGridError::InvalidValues(invalid_values) => {
+    //             assert_eq!(input_length, actual_length);
+    //         }
+    //         _ => panic!("Expected an `InvalidValues` error."),
+    //     }
+    // }
 
     fn extract_errors(parsed: Result<Grid, ParseGridError>) -> ParseGridError {
         parsed.expect_err("Parsing should have failed.")

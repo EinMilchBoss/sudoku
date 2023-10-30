@@ -56,6 +56,7 @@ fn build_parse_error_message(error: &ParseGridError) -> String {
         ParseGridError::InvalidChars(invalid_chars) => {
             format!("{}\n{}", error, write_bullet_points(invalid_chars))
         }
+        ParseGridError::InvalidAreas(_) => "The given grid contains inconsistencies.".to_owned(),
         ParseGridError::InvalidLength(_) => error.to_string(),
     }
 }

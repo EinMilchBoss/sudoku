@@ -44,24 +44,24 @@ impl GridSolver {
 }
 
 fn is_value_possible(value: u8, index: usize, tiles: &[u8; TILES_PER_GRID]) -> bool {
-    is_row_valid(value, index, tiles)
-        && is_column_valid(value, index, tiles)
-        && is_block_valid(value, index, tiles)
+    is_value_not_in_row(value, index, tiles)
+        && is_value_not_in_column(value, index, tiles)
+        && is_value_not_in_block(value, index, tiles)
 }
 
-fn is_row_valid(value: u8, index: usize, tiles: &[u8; TILES_PER_GRID]) -> bool {
+fn is_value_not_in_row(value: u8, index: usize, tiles: &[u8; TILES_PER_GRID]) -> bool {
     let relative_index = index / TILES_PER_GRID_SIDE;
     let mut indices = (0..TILES_PER_GRID_SIDE).map(|i| relative_index * TILES_PER_GRID_SIDE + i);
     is_value_not_taken(&mut indices, value, tiles)
 }
 
-fn is_column_valid(value: u8, index: usize, tiles: &[u8; TILES_PER_GRID]) -> bool {
+fn is_value_not_in_column(value: u8, index: usize, tiles: &[u8; TILES_PER_GRID]) -> bool {
     let relative_index = index % TILES_PER_GRID_SIDE;
     let mut indices = (0..TILES_PER_GRID_SIDE).map(|i| i * TILES_PER_GRID_SIDE + relative_index);
     is_value_not_taken(&mut indices, value, tiles)
 }
 
-fn is_block_valid(value: u8, index: usize, tiles: &[u8; TILES_PER_GRID]) -> bool {
+fn is_value_not_in_block(value: u8, index: usize, tiles: &[u8; TILES_PER_GRID]) -> bool {
     let block_x = (index % TILES_PER_GRID_SIDE) / TILES_PER_BLOCK_SIDE;
     let block_y = (index / TILES_PER_GRID_SIDE) / TILES_PER_BLOCK_SIDE;
     let first_index =
@@ -125,7 +125,7 @@ mod grid_solver_tests {
     #[case(false, 3, 10)]
     #[case(false, 7, 40)]
     #[case(false, 8, 70)]
-    fn is_row_valid_test(
+    fn is_value_not_in_row_test(
         row_and_column_grid: Grid,
         #[case] expected: bool,
         #[case] value: u8,
@@ -133,7 +133,7 @@ mod grid_solver_tests {
     ) {
         let Grid(tiles) = row_and_column_grid;
 
-        let actual = is_column_valid(value, index, &tiles);
+        let actual = is_value_not_in_row(value, index, &tiles);
 
         assert_eq!(expected, actual);
     }
@@ -145,7 +145,7 @@ mod grid_solver_tests {
     #[case(false, 5, 10)]
     #[case(false, 9, 40)]
     #[case(false, 4, 70)]
-    fn is_column_valid_test(
+    fn is_value_not_in_column_test(
         row_and_column_grid: Grid,
         #[case] expected: bool,
         #[case] value: u8,
@@ -153,7 +153,7 @@ mod grid_solver_tests {
     ) {
         let Grid(tiles) = row_and_column_grid;
 
-        let actual = is_column_valid(value, index, &tiles);
+        let actual = is_value_not_in_column(value, index, &tiles);
 
         assert_eq!(expected, actual);
     }
@@ -165,7 +165,7 @@ mod grid_solver_tests {
     #[case(false, 5, 0)]
     #[case(false, 9, 40)]
     #[case(false, 1, 80)]
-    fn is_block_valid_test(
+    fn is_value_not_in_block_test(
         block_grid: Grid,
         #[case] expected: bool,
         #[case] value: u8,
@@ -173,7 +173,7 @@ mod grid_solver_tests {
     ) {
         let Grid(tiles) = block_grid;
 
-        let actual = is_block_valid(value, index, &tiles);
+        let actual = is_value_not_in_block(value, index, &tiles);
 
         assert_eq!(expected, actual);
     }
