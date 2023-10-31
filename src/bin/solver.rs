@@ -53,22 +53,53 @@ fn main() {
 
 fn build_parse_error_message(error: &ParseGridError) -> String {
     match error {
-        ParseGridError::InvalidChars(invalid_chars) => {
-            format!("{}\n{}", error, write_bullet_points(invalid_chars))
-        }
-        ParseGridError::InvalidAreas(_) => "The given grid contains inconsistencies.".to_owned(),
+        ParseGridError::InvalidChars(invalid_chars) => format!(
+            "{error}\n{bullet_points}",
+            bullet_points = invalid_char_bullet_points(invalid_chars)
+        ),
+        ParseGridError::InvalidAreas(invalid_areas) => format!(
+            "{error}\n{bullet_points}",
+            bullet_points = invalid_area_bullet_points(invalid_areas)
+        ),
         ParseGridError::InvalidLength(_) => error.to_string(),
     }
 }
 
-fn write_bullet_points(invalid_chars: &[InvalidChar]) -> String {
-    invalid_chars.iter().map(write_bullet_point).join("\n")
+fn invalid_char_bullet_points(invalid_chars: &[InvalidChar]) -> String {
+    invalid_chars
+        .iter()
+        .map(|invalid_char| {
+            let InvalidChar {
+                index,
+                invalid_char,
+            } = invalid_char;
+            format!("- Invalid char '{}' at position {}.", invalid_char, index)
+        })
+        .join("\n")
 }
 
-pub fn write_bullet_point(invalid_char: &InvalidChar) -> String {
-    let InvalidChar {
-        index,
-        invalid_char,
-    } = invalid_char;
-    format!("- Invalid char '{}' at position {}.", invalid_char, index)
+fn invalid_area_bullet_points(invalid_area: &[InvalidArea]) -> String {
+    invalid_area
+        .iter()
+        .map(|invalid_area| match invalid_area {
+            InvalidArea::Row(InvalidTile { index, value }) => {
+                format!(
+                    "Invalid row due to value '{value}' at row {number}.",
+                    number = index + 1
+                )
+            }
+            InvalidArea::Column(InvalidTile { index, value }) => {
+                format!(
+                    "Invalid column due to value '{value}' at column {number}.",
+                    number = index + 1
+                )
+            }
+            InvalidArea::Block(InvalidTile { index, value }) => {
+                format!(
+                    "Invalid block due to value '{value}' at block {number}.",
+                    number = index + 1
+                )
+            }
+        })
+        .join("\n")
 }

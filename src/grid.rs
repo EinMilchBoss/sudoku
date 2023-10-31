@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fmt, str};
+use std::{fmt, str};
 
 use itertools::{Either, Itertools};
 use thiserror::Error;
@@ -83,73 +83,6 @@ impl str::FromStr for Grid {
     }
 }
 
-fn invalid_blocks(tiles: &[u8]) -> impl Iterator<Item = InvalidArea> + '_ {
-    let block_tiles_iter = (0..TILES_PER_BLOCK_SIDE).flat_map(move |column_offset| {
-        (0..TILES_PER_BLOCK_SIDE).map(move |row_offset| {
-            (0..TILES_PER_BLOCK)
-                .map(move |i| {
-                    let block_row_offset = i / 3;
-                    let fix_offset = row_offset * TILES_PER_BLOCK_SIDE + column_offset;
-                    fix_offset + block_row_offset * TILES_PER_BLOCK_SIDE + block_row_offset
-                })
-                .map(move |index| tiles[index])
-        })
-    });
-
-    invalid_elements(block_tiles_iter, &InvalidArea::Block)
-}
-
-fn invalid_columns(tiles: &[u8]) -> impl Iterator<Item = InvalidArea> + '_ {
-    let column_tiles_iter = (0..TILES_PER_GRID_SIDE).map(move |column_offset| {
-        (0..TILES_PER_GRID_SIDE)
-            .map(move |row_offset| tiles[row_offset * TILES_PER_GRID_SIDE + column_offset])
-    });
-
-    invalid_elements(column_tiles_iter, &InvalidArea::Column)
-}
-
-fn invalid_rows(tiles: &[u8]) -> impl Iterator<Item = InvalidArea> + '_ {
-    let row_tiles_iter = (0..TILES_PER_GRID_SIDE).map(move |column_offset| {
-        (0..TILES_PER_GRID_SIDE)
-            .map(move |row_offset| tiles[column_offset * TILES_PER_GRID_SIDE + row_offset])
-    });
-
-    invalid_elements(row_tiles_iter, &InvalidArea::Row)
-}
-
-fn invalid_elements<'a, II, IO, F>(
-    tiles_iters: IO,
-    to_error_element: &'a F,
-) -> impl Iterator<Item = InvalidArea> + 'a
-where
-    II: Iterator<Item = u8> + 'a,
-    IO: Iterator<Item = II> + 'a,
-    F: Fn(InvalidTile) -> InvalidArea + 'a,
-{
-    tiles_iters
-        .enumerate()
-        .flat_map(move |(index, tiles_iter)| invalid_element(index, tiles_iter, to_error_element))
-}
-
-fn invalid_element<F, I>(
-    index: usize,
-    area: I,
-    to_error_element: F,
-) -> impl Iterator<Item = InvalidArea>
-where
-    I: Iterator<Item = u8>,
-    F: Fn(InvalidTile) -> InvalidArea,
-{
-    let occurrences = area.counts_by(|value| value);
-    occurrences.into_iter().filter_map(move |(value, count)| {
-        if count > 1 && value != EMPTY_TILE {
-            Some(to_error_element(InvalidTile { index, value }))
-        } else {
-            None
-        }
-    })
-}
-
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ParseGridError {
     #[error("One or more chars were invalid.")]
@@ -161,6 +94,12 @@ pub enum ParseGridError {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+pub struct InvalidChar {
+    pub index: usize,
+    pub invalid_char: char,
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub enum InvalidArea {
     Row(InvalidTile),
     Column(InvalidTile),
@@ -169,19 +108,168 @@ pub enum InvalidArea {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct InvalidTile {
-    index: usize,
-    value: u8,
+    pub index: usize,
+    pub value: u8,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct InvalidChar {
-    pub index: usize,
-    pub invalid_char: char,
+fn invalid_rows(tiles: &[u8]) -> impl Iterator<Item = InvalidArea> + '_ {
+    row_tiles_iter(tiles)
+        .enumerate()
+        .flat_map(invalid_element)
+        .map(InvalidArea::Row)
+}
+
+fn invalid_columns(tiles: &[u8]) -> impl Iterator<Item = InvalidArea> + '_ {
+    column_tiles_iter(tiles)
+        .enumerate()
+        .flat_map(invalid_element)
+        .map(InvalidArea::Column)
+}
+
+fn invalid_blocks(tiles: &[u8]) -> impl Iterator<Item = InvalidArea> + '_ {
+    block_tiles_iter(tiles)
+        .enumerate()
+        .flat_map(invalid_element)
+        .map(InvalidArea::Block)
+}
+
+fn row_tiles_iter(tiles: &[u8]) -> impl Iterator<Item = impl Iterator<Item = u8> + '_> {
+    (0..TILES_PER_GRID_SIDE).map(move |column_offset| {
+        (0..TILES_PER_GRID_SIDE)
+            .map(move |row_offset| tiles[column_offset * TILES_PER_GRID_SIDE + row_offset])
+    })
+}
+
+fn column_tiles_iter(tiles: &[u8]) -> impl Iterator<Item = impl Iterator<Item = u8> + '_> {
+    (0..TILES_PER_GRID_SIDE).map(move |column_offset| {
+        (0..TILES_PER_GRID_SIDE)
+            .map(move |row_offset| tiles[row_offset * TILES_PER_GRID_SIDE + column_offset])
+    })
+}
+
+fn block_tiles_iter(tiles: &[u8]) -> impl Iterator<Item = impl Iterator<Item = u8> + '_> {
+    (0..TILES_PER_BLOCK_SIDE).flat_map(move |block_x| {
+        (0..TILES_PER_BLOCK_SIDE).map(move |block_y| {
+            (0..TILES_PER_BLOCK)
+                .map(move |i| {
+                    let fix_column_offset = TILES_PER_BLOCK_SIDE * block_x;
+                    let fix_row_offset = TILES_PER_BLOCK_SIDE * block_y * TILES_PER_GRID_SIDE;
+                    let fix_offset = fix_column_offset + fix_row_offset;
+                    let column_offset = i % TILES_PER_BLOCK_SIDE;
+                    let row_offset = i / TILES_PER_BLOCK_SIDE * TILES_PER_GRID_SIDE;
+                    fix_offset + row_offset + column_offset
+                })
+                .map(|index| tiles[index])
+        })
+    })
+}
+
+fn invalid_element(
+    (index, area): (usize, impl Iterator<Item = u8>),
+) -> impl Iterator<Item = InvalidTile> {
+    let occurrences = area.counts_by(|value| value);
+    occurrences.into_iter().filter_map(move |(value, count)| {
+        if count > 1 && value != EMPTY_TILE {
+            Some(InvalidTile { index, value })
+        } else {
+            None
+        }
+    })
 }
 
 #[cfg(test)]
-mod test_util {
-    use rstest::fixture;
+mod tests {
+    use pretty_assertions::assert_eq;
+    use rstest::{fixture, rstest};
+
+    use crate::{grid::*, test_util, Grid};
+
+    #[fixture]
+    fn grid() -> Grid {
+        test_util::build_grid([
+            [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            [2, 3, 4, 5, 6, 7, 8, 9, 1],
+            [0, 0, 5, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 7, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 9, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 1, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 3, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 5, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 7],
+        ])
+    }
+
+    #[rstest]
+    fn row_tiles_iter_test(grid: Grid) {
+        let Grid(tiles) = grid;
+        let expected = vec![
+            vec![1, 2, 3, 4, 5, 6, 7, 8, 9],
+            vec![2, 3, 4, 5, 6, 7, 8, 9, 1],
+            vec![0, 0, 5, 0, 0, 0, 0, 0, 0],
+            vec![0, 0, 0, 7, 0, 0, 0, 0, 0],
+            vec![0, 0, 0, 0, 9, 0, 0, 0, 0],
+            vec![0, 0, 0, 0, 0, 1, 0, 0, 0],
+            vec![0, 0, 0, 0, 0, 0, 3, 0, 0],
+            vec![0, 0, 0, 0, 0, 0, 0, 5, 0],
+            vec![0, 0, 0, 0, 0, 0, 0, 0, 7],
+        ];
+
+        let actual = row_tiles_iter(&tiles)
+            .map(|iter| iter.collect_vec())
+            .collect_vec();
+
+        assert_eq!(expected, actual);
+    }
+
+    #[rstest]
+    fn column_tiles_iter_test(grid: Grid) {
+        let Grid(tiles) = grid;
+        let expected = vec![
+            vec![1, 2, 0, 0, 0, 0, 0, 0, 0],
+            vec![2, 3, 0, 0, 0, 0, 0, 0, 0],
+            vec![3, 4, 5, 0, 0, 0, 0, 0, 0],
+            vec![4, 5, 0, 7, 0, 0, 0, 0, 0],
+            vec![5, 6, 0, 0, 9, 0, 0, 0, 0],
+            vec![6, 7, 0, 0, 0, 1, 0, 0, 0],
+            vec![7, 8, 0, 0, 0, 0, 3, 0, 0],
+            vec![8, 9, 0, 0, 0, 0, 0, 5, 0],
+            vec![9, 1, 0, 0, 0, 0, 0, 0, 7],
+        ];
+
+        let actual = column_tiles_iter(&tiles)
+            .map(|iter| iter.collect_vec())
+            .collect_vec();
+
+        assert_eq!(expected, actual);
+    }
+
+    #[rstest]
+    fn block_tiles_iter_test(grid: Grid) {
+        let Grid(tiles) = grid;
+        let expected = vec![
+            vec![1, 2, 3, 2, 3, 4, 0, 0, 5],
+            vec![0, 0, 0, 0, 0, 0, 0, 0, 0],
+            vec![0, 0, 0, 0, 0, 0, 0, 0, 0],
+            vec![4, 5, 6, 5, 6, 7, 0, 0, 0],
+            vec![7, 0, 0, 0, 9, 0, 0, 0, 1],
+            vec![0, 0, 0, 0, 0, 0, 0, 0, 0],
+            vec![7, 8, 9, 8, 9, 1, 0, 0, 0],
+            vec![0, 0, 0, 0, 0, 0, 0, 0, 0],
+            vec![3, 0, 0, 0, 5, 0, 0, 0, 7],
+        ];
+
+        let actual = block_tiles_iter(&tiles)
+            .map(|iter| iter.collect_vec())
+            .collect_vec();
+
+        assert_eq!(expected, actual);
+    }
+}
+
+#[cfg(test)]
+mod grid_tests {
+    use pretty_assertions::assert_eq;
+    use rstest::{fixture, rstest};
 
     use crate::*;
 
@@ -199,14 +287,6 @@ mod test_util {
             [1, 1, 1, 1, 1, 1, 1, 1, 1],
         ])
     }
-}
-
-#[cfg(test)]
-mod grid_tests {
-    use pretty_assertions::assert_eq;
-    use rstest::rstest;
-
-    use crate::{grid::test_util::grid, *};
 
     #[rstest]
     fn to_pretty_string_test(grid: Grid) {
@@ -234,9 +314,24 @@ mod grid_tests {
 #[cfg(test)]
 mod grid_display_trait_tests {
     use pretty_assertions::assert_eq;
-    use rstest::rstest;
+    use rstest::{fixture, rstest};
 
-    use crate::{grid::test_util::grid, *};
+    use crate::*;
+
+    #[fixture]
+    pub fn grid() -> Grid {
+        test_util::build_grid([
+            [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [9, 8, 7, 6, 5, 4, 3, 2, 1],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [6, 6, 6, 6, 6, 6, 6, 6, 6],
+            [7, 7, 7, 7, 7, 7, 7, 7, 7],
+            [8, 8, 8, 8, 8, 8, 8, 8, 8],
+            [9, 9, 9, 9, 9, 9, 9, 9, 9],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1],
+        ])
+    }
 
     #[rstest]
     fn to_string_test(grid: Grid) {
@@ -251,31 +346,53 @@ mod grid_display_trait_tests {
 
 #[cfg(test)]
 mod grid_from_str_trait_tests {
+    use itertools::Itertools;
     use pretty_assertions::assert_eq;
+    use rstest::{fixture, rstest};
 
     use crate::*;
 
-    #[test]
-    fn from_str_test_valid_chars() {
-        let input_valid_chars = ["123456789"; 9].join("");
-        let expected = test_util::build_grid([[1, 2, 3, 4, 5, 6, 7, 8, 9]; 9]);
+    #[fixture]
+    fn tiles() -> [[u8; TILES_PER_GRID_SIDE]; TILES_PER_GRID_SIDE] {
+        [
+            [0, 1, 0, 0, 2, 0, 0, 3, 0],
+            [5, 0, 6, 7, 3, 8, 9, 4, 1],
+            [0, 3, 0, 0, 4, 0, 0, 5, 0],
+            [0, 4, 0, 0, 5, 0, 0, 6, 0],
+            [8, 5, 9, 1, 0, 2, 3, 7, 4],
+            [0, 6, 0, 0, 7, 0, 0, 8, 0],
+            [0, 7, 0, 0, 8, 0, 0, 9, 0],
+            [2, 8, 3, 4, 9, 5, 6, 0, 7],
+            [0, 9, 0, 0, 1, 0, 0, 2, 0],
+        ]
+    }
 
-        let actual = input_valid_chars.parse::<Grid>();
+    #[rstest]
+    fn from_str_test_valid_chars(tiles: [[u8; TILES_PER_GRID_SIDE]; TILES_PER_GRID_SIDE]) {
+        let input = tiles.map(|row| row.into_iter().join("")).join("");
+        let expected = test_util::build_grid(tiles);
+
+        let actual = input.parse::<Grid>();
 
         assert_eq!(Ok(expected), actual);
     }
 
-    #[test]
-    fn from_str_test_invalid_chars() {
-        let input_valid_chars = ["a23456789"; 9].join("");
+    #[rstest]
+    fn from_str_test_invalid_chars(tiles: [[u8; TILES_PER_GRID_SIDE]; TILES_PER_GRID_SIDE]) {
+        let invalid_char_amount = 1;
+        let bad_input = tiles.map(|row| row.into_iter().join("")).join("").replacen(
+            '1',
+            "a",
+            invalid_char_amount,
+        );
 
-        let error = extract_errors(input_valid_chars.parse::<Grid>());
+        let error = extract_error(bad_input.parse::<Grid>());
 
         match error {
             ParseGridError::InvalidChars(invalid_chars) => {
-                assert_eq!(9, invalid_chars.len());
+                assert_eq!(invalid_char_amount, invalid_chars.len());
             }
-            _ => panic!("Expected an `InvalidChars` error."),
+            _ => panic!("Expected another error."),
         }
     }
 
@@ -293,47 +410,46 @@ mod grid_from_str_trait_tests {
         let input_length = TILES_PER_GRID + 1;
         let input_bigger = "0".repeat(input_length);
 
-        let error = extract_errors(input_bigger.parse::<Grid>());
+        let error = extract_error(input_bigger.parse::<Grid>());
 
         match error {
             ParseGridError::InvalidLength(actual_length) => {
                 assert_eq!(input_length, actual_length);
             }
-            _ => panic!("Expected an `InvalidLength` error."),
+            _ => panic!("Expected another error."),
         }
     }
 
     #[test]
     fn from_str_test_too_small() {
         let input_length = TILES_PER_GRID - 1;
-        let input_smaller: String = "0".repeat(input_length);
+        let input_smaller = "0".repeat(input_length);
 
-        let error = extract_errors(input_smaller.parse::<Grid>());
+        let error = extract_error(input_smaller.parse::<Grid>());
 
         match error {
             ParseGridError::InvalidLength(actual_length) => {
                 assert_eq!(input_length, actual_length);
             }
-            _ => panic!("Expected an `InvalidLength` error."),
+            _ => panic!("Expected another error."),
         }
     }
 
-    // #[test]
-    // fn from_str_test_invalid_values() {
-    //     let input_length = TILES_PER_GRID - 1;
-    //     let input_smaller: String = "0".repeat(input_length);
+    #[test]
+    fn from_str_test_invalid_areas() {
+        let input = "123456789".repeat(TILES_PER_GRID_SIDE);
 
-    //     let error = extract_errors(input_smaller.parse::<Grid>());
+        let error = extract_error(input.parse::<Grid>());
 
-    //     match error {
-    //         ParseGridError::InvalidValues(invalid_values) => {
-    //             assert_eq!(input_length, actual_length);
-    //         }
-    //         _ => panic!("Expected an `InvalidValues` error."),
-    //     }
-    // }
+        match error {
+            ParseGridError::InvalidAreas(invalid_areas) => {
+                assert_eq!(true, !invalid_areas.is_empty());
+            }
+            _ => panic!("Expected another error."),
+        }
+    }
 
-    fn extract_errors(parsed: Result<Grid, ParseGridError>) -> ParseGridError {
+    fn extract_error(parsed: Result<Grid, ParseGridError>) -> ParseGridError {
         parsed.expect_err("Parsing should have failed.")
     }
 }
