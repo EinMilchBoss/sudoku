@@ -69,12 +69,10 @@ impl str::FromStr for Grid {
         if !invalid_chars.is_empty() {
             return Err(ParseGridError::InvalidChars(invalid_chars));
         }
-
         let invalid_areas = invalid_rows(&values)
             .chain(invalid_columns(&values))
             .chain(invalid_blocks(&values))
             .collect_vec();
-
         if !invalid_areas.is_empty() {
             return Err(ParseGridError::InvalidAreas(invalid_areas));
         }
