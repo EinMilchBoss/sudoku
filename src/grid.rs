@@ -150,16 +150,14 @@ fn column_tiles_iter(tiles: &[u8]) -> impl Iterator<Item = impl Iterator<Item = 
 fn block_tiles_iter(tiles: &[u8]) -> impl Iterator<Item = impl Iterator<Item = u8> + '_> {
     (0..TILES_PER_BLOCK_SIDE).flat_map(move |block_x| {
         (0..TILES_PER_BLOCK_SIDE).map(move |block_y| {
-            (0..TILES_PER_BLOCK)
-                .map(move |i| {
-                    let fix_column_offset = TILES_PER_BLOCK_SIDE * block_x;
-                    let fix_row_offset = TILES_PER_BLOCK_SIDE * block_y * TILES_PER_GRID_SIDE;
-                    let fix_offset = fix_column_offset + fix_row_offset;
-                    let column_offset = i % TILES_PER_BLOCK_SIDE;
-                    let row_offset = i / TILES_PER_BLOCK_SIDE * TILES_PER_GRID_SIDE;
-                    fix_offset + row_offset + column_offset
-                })
-                .map(|index| tiles[index])
+            (0..TILES_PER_BLOCK).map(move |i| {
+                let fix_column_offset = TILES_PER_BLOCK_SIDE * block_x;
+                let fix_row_offset = TILES_PER_BLOCK_SIDE * block_y * TILES_PER_GRID_SIDE;
+                let fix_offset = fix_column_offset + fix_row_offset;
+                let column_offset = i % TILES_PER_BLOCK_SIDE;
+                let row_offset = i / TILES_PER_BLOCK_SIDE * TILES_PER_GRID_SIDE;
+                tiles[fix_offset + row_offset + column_offset]
+            })
         })
     })
 }
