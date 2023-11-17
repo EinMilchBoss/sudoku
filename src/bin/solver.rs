@@ -32,7 +32,6 @@ fn main() {
     });
 
     let solutions = grid.solve();
-
     if solutions.is_empty() {
         println!("Could not find a solution.");
         return;
